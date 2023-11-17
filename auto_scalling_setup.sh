@@ -17,9 +17,9 @@ sudo yum upgrade
 sudo yum install git -y
 cd /home/ec2-user
 # get source code from githubt
-git clone https://github.com/felixyu9/auto-scaling-nodejs-app
+git clone https://github.com/devngl91/node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas.git
 #get in project dir
-cd auto-scaling-nodejs-app
+cd node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas
 #give permission
 sudo chmod -R 755 .
 #install node module

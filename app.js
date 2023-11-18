@@ -844,4 +844,24 @@ app.post(
 	}
 )
 
+/**
+ * health check
+ * area usada para verificar a saude da API, retornando...
+ * 200 = success
+ * 503 = service unavailable
+ */
+app.get('/healthCheckApi', cors(corsOptions), async (req, res) => {
+	try {
+		res.status(200).send({
+			status_msg: 'health',
+			status_resp: dateMileToDefault(dateFunc(), 'date') + ' UTC',
+		})
+	} catch (error) {
+		res.status(503).send({
+			status_msg: 'error',
+			status_resp: error,
+		})
+	}
+})
+
 app.listen(port, () => console.log(`API is running on Port :: ${port}`))

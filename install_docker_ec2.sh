@@ -16,8 +16,8 @@ sleep 2
 sudo chmod 666 /var/run/docker.sock
 sleep 5
 # pega o projeto do git
-git clone https://github.com/devngl91/ec2-test-node.git
-cd ec2-test-node.git
+git clone https://github.com/devngl91/node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas.git
+cd node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas
 # da permissão
 sudo chmod -R 755 .
 sleep 2

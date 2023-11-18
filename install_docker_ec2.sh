@@ -1,4 +1,6 @@
 #!/bin/bash
+# install of environment
+
 cd
 sudo yum update -y
 sudo yum install docker git npm -y
@@ -11,9 +13,8 @@ sudo chmod +x /usr/local/bin/docker-compose
 sleep 2
 sudo service docker start
 sudo chmod 666 /var/run/docker.sock
-sleep 5
+sleep 2
 git clone https://github.com/devngl91/node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas.git
 cd node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas
 sudo chmod -R 755 .
-sleep 2
 docker-compose up -d

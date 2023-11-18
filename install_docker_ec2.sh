@@ -15,11 +15,15 @@ sudo ufw default deny incoming
 
 sudo ufw default allow outgoing
 
-sudo ufw enable -y
+sudo ufw enable
 
 sudo apt install docker.io git -y
 
-sudo apt install nodejs
+sudo apt install nodejs -y
+
+sudo apt install npm -y
+
+sudo npm install -g nodemon
 
 sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 

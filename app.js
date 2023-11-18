@@ -55,6 +55,71 @@ app.use(allowMethods(['get', 'post']))
 app.use(express.json({ limit: '100mb' }))
 
 /**
+ * config de elementos do código que podem ser alterados diretamente, dessa forma
+ * não precisará fazer reboot no sistema, apenas atualizar esse arquivo com a alteração
+ * desejada já irá resultar na alteração.
+ */
+const configEnv = (config) => {
+	// define o time de GMT a diminuir da hora atual, caso esteja divergente do Brasil
+	let configReturn = null
+
+	if (config == 'TIME_SYNC_GMT') {
+		configReturn = 3
+	}
+
+	// level 1 = leve, quando zerar o time, zera os clicks tambem
+	// level 2 = agressivo, quando zerar o time, não zera os clicks
+	if (config == 'FLOOD_INTENSITY') {
+		configReturn = 1
+	}
+
+	// tempo default do timeout de click feito - caso a aplicação não libere antes
+	// defini para inicio : 10segundos
+	if (config == 'FLOOD_TIMEOUT_DEFAULT') {
+		configReturn = 10
+	}
+
+	// limite de clicks para atingir o flood + block
+	if (config == 'FLOOD_0_LIMIT') {
+		configReturn = 3 // aviso flood
+	}
+	if (config == 'FLOOD_1_LIMIT') {
+		configReturn = 7 // block 1
+	}
+	if (config == 'FLOOD_2_LIMIT') {
+		configReturn = 10 // block 2
+	}
+	if (config == 'FLOOD_3_LIMIT') {
+		configReturn = 15 // block 3
+	}
+	if (config == 'FLOOD_4_LIMIT') {
+		configReturn = 20 // block 4
+	}
+	if (config == 'FLOOD_5_LIMIT') {
+		configReturn = 25 // block 5
+	}
+
+	// tempo de bloqueio para cada nivel de flood
+	if (config == 'FLOOD_1_TIMEOUT') {
+		configReturn = 1 // 1min
+	}
+	if (config == 'FLOOD_2_TIMEOUT') {
+		configReturn = 3 // 3min
+	}
+	if (config == 'FLOOD_3_TIMEOUT') {
+		configReturn = 10 // 10min
+	}
+	if (config == 'FLOOD_4_TIMEOUT') {
+		configReturn = 15 // 15min
+	}
+	if (config == 'FLOOD_5_TIMEOUT') {
+		configReturn = 30 // 30min
+	}
+
+	return configReturn
+}
+
+/**
  * ratelimit da aplicação para definir a carga vinda e evitar ataques
  * abaixo ja faz o uso de forma geral para todas as chamadas
  */
@@ -67,7 +132,7 @@ const apiLimiter = rateLimit({
 			status_msg: 'blocked',
 			status_msg_declaration: 'to-many-requests',
 			status_resp:
-				'Identificamos muitas requisições, tente novamente mais tarde!',
+				'Identificamos muitas requisições, tente novamente daqui a alguns minutos!',
 		})
 	},
 })
@@ -101,23 +166,39 @@ const authMiddleware = async (req, res, next) => {
 	const contentType = req.header('Content-Type')
 	// valida se veio token
 	if (!token) {
-		return res.status(401).json({ message: 'No token provided!' })
+		return res.status(401).json({
+			status_msg: 'denied',
+			status_msg_declaration: 'no-token-provided',
+			status_resp: 'No token provided!',
+		})
 	}
 	// valida se content type é valido
 	if (!contentType || contentType != 'application/json') {
-		return res.status(401).json({ message: 'Content Type not allowed!' })
+		return res.status(401).json({
+			status_msg: 'denied',
+			status_msg_declaration: 'content-type-not-allowed',
+			status_resp: 'Content Type not allowed!',
+		})
 	}
 
 	try {
 		// verifica o token do .ENV com o token vindo
 		const tokenKeyEnv = process.env.TOKEN_KEY_API
 		if (token != tokenKeyEnv) {
-			return res.status(401).json({ message: 'Invalid token!' })
+			return res.status(401).json({
+				status_msg: 'denied',
+				status_msg_declaration: 'invalid-token',
+				status_resp: 'Invalid token!',
+			})
 		}
 		next()
 	} catch (err) {
 		console.error(err)
-		res.status(500).json({ message: 'Server error!' })
+		res.status(500).json({
+			status_msg: 'denied',
+			status_msg_declaration: 'server-error',
+			status_resp: 'Server error!',
+		})
 	}
 }
 
@@ -169,7 +250,7 @@ const dateFunc = (calculation = null, time = null) => {
  * faz o tratamento de data vindo de milesegundos para o padrão pr-BR
  *
  */
-const dateMile = (timestamp, type) => {
+const dateMileToDefault = (timestamp, type) => {
 	const date = new Date(timestamp)
 	let dateFormat
 
@@ -185,7 +266,8 @@ const dateMile = (timestamp, type) => {
 		result = myArr.split(':')
 		// faz o split e subtração da hora p/ corrigir ( em 3 hrs abaixo )
 		//FIXME: chamada .env não funciona ( TIME_SYNC_GMT) on tem [-3+]
-		dateFormat = result[0] - 3 + ':' + result[1] + ':' + result[2]
+		dateFormat =
+			result[0] - configEnv('TIME_SYNC_GMT') + ':' + result[1] + ':' + result[2]
 	}
 	return dateFormat
 }
@@ -235,9 +317,8 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 
 	// cria uma nova data de expiração ( baseado no time )
 	const dateClickNow = dateFunc()
-	// usa o tempo default 8/secs para uma expiração máxima
-	//FIXME: chamada .env não funciona ( FLOOD_TIMEOUT_DEFAULT)
-	const dateClickInitial = dateFunc('+', 8)
+	// usa o tempo default 10/secs para uma expiração máxima
+	const dateClickInitial = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT'))
 
 	// monta os dados para insert
 	const dataJSON = {
@@ -260,7 +341,7 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 				res.status(200).send({
 					status_msg: 'allow',
 					status_msg_declaration: 'click-allow',
-					status_resp: 'próximo clique liberado [1]',
+					status_resp: dateMileToDefault(dateClickInitial, 'time'),
 				})
 			} catch (error) {
 				res.status(400).send({
@@ -326,7 +407,7 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 							 * se mantem os clicks e zera o BlockLevel
 							 */
 							// FLOOD_INTENSITY = level 1 ( zera os clicks + blockLevel )
-							if (process.env.FLOOD_INTENSITY == 1) {
+							if (configEnv('FLOOD_INTENSITY') == 1) {
 								newClicks = newClicks
 								newBlockLevelUser = newBlockLevelUser
 							} else {
@@ -349,7 +430,7 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 						res.status(200).send({
 							status_msg: 'allow',
 							status_msg_declaration: 'click-allow',
-							status_resp: 'próximo clique liberado [2]',
+							status_resp: dateMileToDefault(dateClickExpiration, 'time'),
 						})
 					} catch (error) {
 						res.status(400).send({
@@ -361,12 +442,12 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 				} else {
 					// verifica quantos clicks ja foram dados p/ alertar ao usuario sobre o Flood
 					// cada flood tera um clique limit + tempo em ( min )
-					const flood_0_limit = process.env.FLOOD_0_LIMIT
-					const flood_1_limit = process.env.FLOOD_1_LIMIT
-					const flood_2_limit = process.env.FLOOD_2_LIMIT
-					const flood_3_limit = process.env.FLOOD_3_LIMIT
-					const flood_4_limit = process.env.FLOOD_4_LIMIT
-					const flood_5_limit = process.env.FLOOD_5_LIMIT
+					const flood_0_limit = configEnv('FLOOD_0_LIMIT')
+					const flood_1_limit = configEnv('FLOOD_1_LIMIT')
+					const flood_2_limit = configEnv('FLOOD_2_LIMIT')
+					const flood_3_limit = configEnv('FLOOD_3_LIMIT')
+					const flood_4_limit = configEnv('FLOOD_4_LIMIT')
+					const flood_5_limit = configEnv('FLOOD_5_LIMIT')
 
 					// valida quantos floods o usuário ja fez pra notificar + aplicar penalidade
 					if (clicksSum >= flood_0_limit && clicksSum < flood_1_limit) {
@@ -382,9 +463,7 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 							res.status(401).send({
 								status_msg: 'flood',
 								status_msg_declaration: 'click-flood-warning',
-								status_resp:
-									'você está cometendo flood, evite bloqueio. clique após : ' +
-									dateMile(dateClickExpiration, 'time'),
+								status_resp: dateMileToDefault(dateClickExpiration, 'time'),
 							})
 						} catch (error) {
 							res.status(400).send({
@@ -415,10 +494,9 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 								status_msg: 'blocked',
 								status_msg_declaration: 'click-flood-block-1',
 								status_resp:
-									'bloqueado por : ' +
-									process.env.FLOOD_1_TIMEOUT +
-									'/min | você será desbloqueado as : ' +
-									dateMile(dateClickExpiration, 'time'),
+									configEnv('FLOOD_1_TIMEOUT') +
+									'/' +
+									dateMileToDefault(dateClickExpiration, 'time'),
 							})
 						} catch (error) {
 							res.status(400).send({
@@ -449,10 +527,9 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 								status_msg: 'blocked',
 								status_msg_declaration: 'click-flood-block-2',
 								status_resp:
-									'bloqueado por : ' +
-									process.env.FLOOD_2_TIMEOUT +
-									'/min | você será desbloqueado as : ' +
-									dateMile(dateClickExpiration, 'time'),
+									configEnv('FLOOD_2_TIMEOUT') +
+									'/' +
+									dateMileToDefault(dateClickExpiration, 'time'),
 							})
 						} catch (error) {
 							res.status(400).send({
@@ -483,10 +560,9 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 								status_msg: 'blocked',
 								status_msg_declaration: 'click-flood-block-3',
 								status_resp:
-									'bloqueado por : ' +
-									process.env.FLOOD_3_TIMEOUT +
-									'/min | você será desbloqueado as : ' +
-									dateMile(dateClickExpiration, 'time'),
+									configEnv('FLOOD_3_TIMEOUT') +
+									'/' +
+									dateMileToDefault(dateClickExpiration, 'time'),
 							})
 						} catch (error) {
 							res.status(400).send({
@@ -517,10 +593,9 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 								status_msg: 'blocked',
 								status_msg_declaration: 'click-flood-block-4',
 								status_resp:
-									'bloqueado por : ' +
-									process.env.FLOOD_4_TIMEOUT +
-									'/min | você será desbloqueado as : ' +
-									dateMile(dateClickExpiration, 'time'),
+									configEnv('FLOOD_4_TIMEOUT') +
+									'/' +
+									dateMileToDefault(dateClickExpiration, 'time'),
 							})
 						} catch (error) {
 							res.status(400).send({
@@ -562,10 +637,9 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 								status_msg: 'blocked',
 								status_msg_declaration: 'click-flood-block-5',
 								status_resp:
-									'bloqueado por : ' +
-									process.env.FLOOD_5_TIMEOUT +
-									'/min | você será desbloqueado as : ' +
-									dateMile(dateClickExpiration, 'time'),
+									configEnv('FLOOD_5_TIMEOUT') +
+									'/' +
+									dateMileToDefault(dateClickExpiration, 'time'),
 							})
 						} catch (error) {
 							res.status(400).send({
@@ -587,9 +661,7 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 							res.status(401).send({
 								status_msg: 'denied',
 								status_msg_declaration: 'click-denied',
-								status_resp:
-									'evite bloqueio, clique após : ' +
-									dateMile(dateClickExpiration, 'time'),
+								status_resp: dateMileToDefault(dateClickExpiration, 'time'),
 							})
 						} catch (error) {
 							res.status(400).send({
@@ -616,7 +688,7 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 					res.status(200).send({
 						status_msg: 'allow',
 						status_msg_declaration: 'click-allow',
-						status_resp: dateMile(dateClickInitial, 'time'),
+						status_resp: dateMileToDefault(dateClickInitial, 'time'),
 					})
 				} catch (error) {
 					res.status(400).send({
@@ -631,8 +703,10 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 })
 
 /**
- * atualiza o status para = off quando o comando da request for finalizada do lado Bot Python
- *
+ * atualiza o status para = off quando o comando da request for finalizada do
+ * lado Bot Python. porem, não pode desbloquear um usuário que já estiver bloqueado
+ * apenas mostrar para ele que esta bloqueado! isso evita que libere um usuario
+ * que forçou ser bloqueado. ( boa sacada que o Weslen viu e não vi )
  */
 app.post(
 	'/updateClick',
@@ -650,8 +724,92 @@ app.post(
 			// verifica se o usuario existe - caso não, faz o cadastro
 			if (doc.exists) {
 				try {
-					// sleep para da um "extra delay"
-					sleepFunc(500)
+					// sleep para da um "extra delay" na liberação do usuário
+					sleepFunc(1000)
+
+					// verifica se o usuário vindo está bloqueado, se sim, não libera
+					let blockLevelActual = doc.data().blockLevel
+
+					if (blockLevelActual > 0 && blockLevelActual != null) {
+						// pega o nivel de bloqueio para retornar ao usuário o tempo
+						if (blockLevelActual == 1) {
+							blockLevelActual = configEnv('FLOOD_1_TIMEOUT')
+						} else if (blockLevelActual == 2) {
+							blockLevelActual = configEnv('FLOOD_2_TIMEOUT')
+						} else if (blockLevelActual == 3) {
+							blockLevelActual = configEnv('FLOOD_3_TIMEOUT')
+						} else if (blockLevelActual == 4) {
+							blockLevelActual = configEnv('FLOOD_4_TIMEOUT')
+						} else if (blockLevelActual == 5) {
+							blockLevelActual = configEnv('FLOOD_5_TIMEOUT')
+						}
+
+						// aqui retorna para o usuário que ele está bloqueado + o tempo
+						res.status(401).send({
+							status_msg: 'blocked',
+							status_msg_declaration: 'click-flood-block-updated',
+							status_resp:
+								blockLevelActual +
+								'/' +
+								dateMileToDefault(doc.data().expiredAt, 'time'),
+						})
+					} else {
+						// aqui permiti passar e zerar pois o usuário não está bloqueado
+						const data = {
+							clicks: 0,
+							status: 'off',
+							blockLevel: 0,
+							expiredAt: dateClickNow,
+							updatedAt: dateClickNow,
+						}
+						// aqui faz a atualização zerando o score do usuario
+						const updateUserById = collectionClick.doc(userId).update(data)
+
+						res.status(200).send({
+							status_msg: 'allow',
+							status_msg_declaration: 'click-updated',
+							status_resp: dateMileToDefault(dateClickNow, 'time'),
+						})
+					}
+				} catch (error) {
+					res.status(400).send({
+						status_msg: 'error',
+						status_msg_declaration: 'click-updated-error',
+						status_resp: error,
+					})
+				}
+			} else {
+				res.status(200).send({
+					status_msg: 'allow',
+					status_msg_declaration: 'click-updated',
+					status_resp: dateMileToDefault(dateClickNow, 'time'),
+				})
+			}
+		})
+	}
+)
+
+/**
+ * função para ADM, que ira liberar o usuario de forma manual se precisar
+ */
+app.post(
+	'/updateAdmClick',
+	authMiddleware,
+	cors(corsOptions),
+	async (req, res) => {
+		// pegar o userId vindo do POST ( pelo CORE )
+		const userId = req.body.userId
+
+		// define a data Expired como a data de agora
+		const dateClickNow = dateFunc()
+
+		const checkUser = collectionClick.doc(userId)
+		checkUser.get().then((doc) => {
+			// verifica se o usuario existe - caso não, faz o cadastro
+			if (doc.exists) {
+				try {
+					// sleep para da um "extra delay" na liberação do usuário
+					sleepFunc(1000)
 
 					const data = {
 						clicks: 0,
@@ -666,7 +824,7 @@ app.post(
 					res.status(200).send({
 						status_msg: 'allow',
 						status_msg_declaration: 'click-updated',
-						status_resp: 'usuário liberado para clicar novamente [1]',
+						status_resp: dateMileToDefault(dateClickNow, 'time'),
 					})
 				} catch (error) {
 					res.status(400).send({
@@ -679,7 +837,7 @@ app.post(
 				res.status(200).send({
 					status_msg: 'allow',
 					status_msg_declaration: 'click-updated',
-					status_resp: 'usuário liberado para clicar novamente [2]',
+					status_resp: dateMileToDefault(dateClickNow, 'time'),
 				})
 			}
 		})

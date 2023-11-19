@@ -13,4 +13,4 @@ services:
     ports:
       - $NODE_LOCAL_PORTS:$NODE_DOCKER_PORTS # chama a porta do local 3000 para a do container 3000
     volumes:
-      - .:/usr/app # monitoro a pasta atual . e envio as alterações para /usr/app
+      - .:/usr/app ## monitoro a pasta atual . e envio as alterações para /usr/app

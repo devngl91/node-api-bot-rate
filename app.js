@@ -266,8 +266,9 @@ const dateMileToDefault = (timestamp, type) => {
 		result = myArr.split(':')
 		// faz o split e subtração da hora p/ corrigir ( em 3 hrs abaixo )
 		//FIXME: chamada .env não funciona ( TIME_SYNC_GMT) on tem [-3+]
-		dateFormat =
-			result[0] - configEnv('TIME_SYNC_GMT') + ':' + result[1] + ':' + result[2]
+		// dateFormat =
+		// 	result[0] - configEnv('TIME_SYNC_GMT') + ':' + result[1] + ':' + result[2]
+		dateFormat = result[0] + ':' + result[1] + ':' + result[2]
 	}
 	return dateFormat
 }

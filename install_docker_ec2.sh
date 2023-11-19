@@ -15,8 +15,6 @@ sudo ufw default deny incoming
 
 sudo ufw default allow outgoing
 
-sudo ufw enable
-
 sudo apt install docker.io git -y
 
 sudo apt install nodejs -y
@@ -41,4 +39,5 @@ npm install
 
 sleep 2
 
-docker-compose up -d
+# sudo ufw enable 
+# docker-compose up -d

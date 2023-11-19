@@ -19,7 +19,7 @@ jobs:
         run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 
       - name: Build the Docker image
-        run: docker build . --file Dockerfile --tag ${{secrets.DOCKER_USERNAME}}/node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas:$(date +%s)
+        run: docker build . --file Dockerfile --tag ${{secrets.DOCKER_USERNAME}}/node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas:latest
 
       - name: Push to Dockerhub
         run: docker push ${{secrets.DOCKER_USERNAME}}/node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas:latest

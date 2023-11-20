@@ -414,10 +414,6 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 
 	// console.log('request:' + req.method)
 
-	return res.status(200).send({
-		status_msg_declaration: 'LB-4',
-	})
-
 	// valida o tipo do input vindo, p/ saber se ele é o esperado
 	let validatorCheck = validatorInputs(userId, 'isNumeric')
 	if (!validatorCheck) {

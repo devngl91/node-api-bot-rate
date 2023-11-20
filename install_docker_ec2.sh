@@ -5,15 +5,13 @@ cd
 
 sudo apt update -y
 
+sudo ufw allow 22
 sudo ufw allow 80
-
 sudo ufw allow 443
-
 sudo ufw allow 3000
-
 sudo ufw default deny incoming
-
 sudo ufw default allow outgoing
+sudo ufw enable
 
 sudo apt install docker.io git -y
 
@@ -41,8 +39,6 @@ sudo chmod 666 /var/run/docker.sock
 git clone https://github.com/devngl91/node-api-bot-rate.git
 
 cd node-api-bot-rate
-
-sudo ufw enable
 
 npm install
 

@@ -54,7 +54,7 @@ const configEnv = (config) => {
 	// define o time de GMT a diminuir da hora atual, caso esteja divergente do Brasil
 	let configReturn = null
 
-	if (config == 'COLECTION') {
+	if (config == 'COLLECTION') {
 		configReturn = 'clickLimitNovo'
 	}
 

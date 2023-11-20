@@ -132,7 +132,7 @@ var corsOptions = {
 		}
 	},
 }
-app.use(cors(corsOptions))
+// app.use(cors(corsOptions))
 
 /**
  * Tratamento de bloqueio de METHOD

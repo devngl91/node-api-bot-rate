@@ -59,7 +59,7 @@ const configEnv = (config) => {
 	let configReturn = null
 
 	if (config == 'COLLECTION') {
-		configReturn = 'clickLimitBotNovo'
+		configReturn = 'clickRateLimitBot'
 	}
 
 	if (config == 'TIME_SYNC_GMT') {

@@ -136,7 +136,7 @@ var corsOptions = {
 		}
 	},
 }
-// app.use(cors(corsOptions))
+app.use(cors(corsOptions))
 
 /**
  * trus proxy for express : prevent 502 bad gateway

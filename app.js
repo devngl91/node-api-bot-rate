@@ -238,7 +238,7 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 // const collectionClick = db.collection(configEnv('COLLECTION'))
-const collectionClick = db.collection('clickLimitNovo')
+const collectionClick = db.collection(configEnv('COLLECTION'))
 
 /**
  * tratamento de data
@@ -358,7 +358,7 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 	}
 
 	// verifica se ja existe o userId no banco
-	const checkUser = collectionClick.doc(userId)
+	const checkUser = collectionClick.doc('' + userId + '')
 	checkUser.get().then((doc) => {
 		// verifica se o usuario existe - caso não, faz o cadastro
 		if (!doc.exists) {

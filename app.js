@@ -55,7 +55,7 @@ const configEnv = (config) => {
 	let configReturn = null
 
 	if (config == 'COLLECTION') {
-		configReturn = 'clickLimitNovo'
+		configReturn = 'clickLimitBotNovo'
 	}
 
 	if (config == 'TIME_SYNC_GMT') {
@@ -451,7 +451,9 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 						}
 
 						// aqui faz a atualização com o status off + data do updated
-						const updateUserById = collectionClick.doc(userId).update(data)
+						const updateUserById = collectionClick
+							.doc('' + userId + '')
+							.update(data)
 
 						res.status(200).send({
 							status_msg: 'allow',
@@ -484,7 +486,9 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 								blockLevel: 0,
 							}
 							// aqui faz a atualização o novo total de clicks feitos
-							const updateUserById = collectionClick.doc(userId).update(data)
+							const updateUserById = collectionClick
+								.doc('' + userId + '')
+								.update(data)
 
 							res.status(401).send({
 								status_msg: 'flood',
@@ -513,7 +517,9 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 									expiredAt: dateFunc('+', 60), // 1min
 								}
 								// aqui faz a atualização o novo total de clicks feitos
-								const updateUserById = collectionClick.doc(userId).update(data)
+								const updateUserById = collectionClick
+									.doc('' + userId + '')
+									.update(data)
 							}
 
 							res.status(401).send({
@@ -546,7 +552,9 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 									expiredAt: dateFunc('+', 180), // 3min
 								}
 								// aqui faz a atualização o novo total de clicks feitos
-								const updateUserById = collectionClick.doc(userId).update(data)
+								const updateUserById = collectionClick
+									.doc('' + userId + '')
+									.update(data)
 							}
 
 							res.status(401).send({
@@ -579,7 +587,9 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 									expiredAt: dateFunc('+', 600), // 10min
 								}
 								// aqui faz a atualização o novo total de clicks feitos
-								const updateUserById = collectionClick.doc(userId).update(data)
+								const updateUserById = collectionClick
+									.doc('' + userId + '')
+									.update(data)
 							}
 
 							res.status(401).send({
@@ -612,7 +622,9 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 									expiredAt: dateFunc('+', 900), // 15min
 								}
 								// aqui faz a atualização o novo total de clicks feitos
-								const updateUserById = collectionClick.doc(userId).update(data)
+								const updateUserById = collectionClick
+									.doc('' + userId + '')
+									.update(data)
 							}
 
 							res.status(401).send({
@@ -654,7 +666,7 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 									}
 									// aqui faz a atualização o novo total de clicks feitos
 									const updateUserById = collectionClick
-										.doc(userId)
+										.doc('' + userId + '')
 										.update(data)
 								}
 							}
@@ -682,7 +694,9 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 								clicks: clicksSum + 1,
 							}
 							// aqui faz a atualização o novo total de clicks feitos
-							const updateUserById = collectionClick.doc(userId).update(data)
+							const updateUserById = collectionClick
+								.doc('' + userId + '')
+								.update(data)
 
 							res.status(401).send({
 								status_msg: 'denied',
@@ -709,7 +723,9 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 					}
 
 					// aqui faz a atualização com o status on + data do expiredAt p/ expiração
-					const updateUserById = collectionClick.doc(userId).update(data)
+					const updateUserById = collectionClick
+						.doc('' + userId + '')
+						.update(data)
 
 					res.status(200).send({
 						status_msg: 'allow',
@@ -745,7 +761,7 @@ app.post(
 		// define a data Expired como a data de agora
 		const dateClickNow = dateFunc()
 
-		const checkUser = collectionClick.doc(userId)
+		const checkUser = collectionClick.doc('' + userId + '')
 		checkUser.get().then((doc) => {
 			// verifica se o usuario existe - caso não, faz o cadastro
 			if (doc.exists) {
@@ -789,7 +805,9 @@ app.post(
 							updatedAt: dateClickNow,
 						}
 						// aqui faz a atualização zerando o score do usuario
-						const updateUserById = collectionClick.doc(userId).update(data)
+						const updateUserById = collectionClick
+							.doc('' + userId + '')
+							.update(data)
 
 						res.status(200).send({
 							status_msg: 'allow',
@@ -829,7 +847,7 @@ app.post(
 		// define a data Expired como a data de agora
 		const dateClickNow = dateFunc()
 
-		const checkUser = collectionClick.doc(userId)
+		const checkUser = collectionClick.doc('' + userId + '')
 		checkUser.get().then((doc) => {
 			// verifica se o usuario existe - caso não, faz o cadastro
 			if (doc.exists) {
@@ -845,7 +863,9 @@ app.post(
 						updatedAt: dateClickNow,
 					}
 					// aqui faz a atualização zerando o score do usuario
-					const updateUserById = collectionClick.doc(userId).update(data)
+					const updateUserById = collectionClick
+						.doc('' + userId + '')
+						.update(data)
 
 					res.status(200).send({
 						status_msg: 'allow',

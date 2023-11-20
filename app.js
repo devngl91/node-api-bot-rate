@@ -18,7 +18,7 @@ const port = process.env.NODE_LOCAL_PORTS
  * Por : Nelson Leal ( @devngl91 )
  *
  *
- * [ Funcionalidade ]
+ * [[ Funcionalidade ]]
  * Tem a funcionalidade de ser um Middleware de RATELIMIT dos clicks feitos
  * pelos usuário, gerando a permissão, negação ou bloqueio do usuário em regras
  * de RateLimit baseado nos cliques feitos, possui uma clausula que, só irá

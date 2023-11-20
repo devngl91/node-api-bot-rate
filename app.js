@@ -171,7 +171,7 @@ const apiLimiter = rateLimit({
 	},
 })
 
-app.use(apiLimiter)
+// app.use(apiLimiter)
 
 /**
  * funcao tokenKey middleware

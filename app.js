@@ -136,7 +136,7 @@ var corsOptions = {
 		}
 	},
 }
-app.use(cors(corsOptions))
+// app.use(cors(corsOptions))
 
 /**
  * trus proxy for express : prevent 502 bad gateway
@@ -152,9 +152,9 @@ app.use(allowMethods('get', 'post'))
 /**
  *
  * middleware para envio max de dados com o express
- * limitando em 1000mb o maximo de envio vindo do request
+ * limitando em 20mb o maximo de envio vindo do request
  */
-app.use(express.json({ limit: '1000mb' }))
+app.use(express.json({ limit: '20mb' }))
 
 /**
  *
@@ -166,7 +166,7 @@ app.use(express.json({ limit: '1000mb' }))
 const apiLimiter = rateLimit({
 	validationsConfig: false,
 	windowMs: 1 * 60 * 1000, // janela de 1/min
-	max: 10000, // limit de request pela janela : 10K
+	max: 2, // limit de request pela janela : 10K
 	handler: function (req, res /*next*/) {
 		return res.status(401).json({
 			status_msg: 'blocked',

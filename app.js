@@ -237,7 +237,8 @@ const db = admin.firestore()
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-const collectionClick = db.collection(configEnv('COLLECTION'))
+// const collectionClick = db.collection(configEnv('COLLECTION'))
+const collectionClick = db.collection('clickLimitNovo')
 
 /**
  * tratamento de data

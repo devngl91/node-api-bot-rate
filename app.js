@@ -290,6 +290,7 @@ const validatorInputs = (input, type = null) => {
 
 /**
  * Inicialização firebase/firestore App
+ *
  */
 admin.initializeApp({
 	credential: admin.credential.cert(credentials),
@@ -310,7 +311,7 @@ const collectionClick = db.collection(configEnv('COLLECTION'))
 const dateFunc = (calculation = null, time = null) => {
 	// se não vier date, sera a data atual
 	if (!time) {
-		time = Date.now()
+		time = Date.now() // date now
 	} else {
 		// se vier date, sera o valor em segundos a acrescentar
 		let dateToExpire = new Date()

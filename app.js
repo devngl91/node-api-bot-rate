@@ -333,6 +333,7 @@ const dateFunc = (calculation = null, time = null) => {
 }
 
 /**
+ *
  * tratamento de data mile -> pt-BR
  * faz o tratamento de data vindo de milesegundos para o padrão pr-BR
  *

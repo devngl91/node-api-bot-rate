@@ -5,6 +5,8 @@ const credentials = require('./creds.json')
 const cors = require('cors')
 const { allowMethods } = require('./libs/allow_methods')
 const rateLimit = require('express-rate-limit')
+const { RateLimiterMemory } = require('rate-limiter-flexible')
+
 require('dotenv').config()
 const port = process.env.NODE_LOCAL_PORTS
 
@@ -168,7 +170,7 @@ const apiLimiter = rateLimit({
 	windowMs: 1 * 60 * 1000, // janela de 1/min
 	max: 10000, // limit de request pela janela : 10K
 	handler: function (req, res /*next*/) {
-		return res.status(401).json({
+		return res.status(400).json({
 			status_msg: 'blocked',
 			status_msg_declaration: 'to-many-requests',
 			status_resp:
@@ -178,6 +180,31 @@ const apiLimiter = rateLimit({
 })
 
 app.use(apiLimiter)
+
+/**
+ * rate limit points
+ * forma de controlar os clicks do usuario, e evitar que ele click muitas vezes,
+ * assim ele clica 5x, mas apenas 1 click vai passar.
+ */
+const limiter = new RateLimiterMemory({
+	points: 1, // 1 request per seconds
+	duration: 1, // 1 seconds duration windows time
+})
+
+const rateLimiterClicksMiddleware = (req, res, next) => {
+	limiter
+		.consume(req.ip) // Track requests based on IP address
+		.then(() => {
+			console.log('rate passou')
+			next() // Request within the rate limit, proceed to the next middleware
+		})
+		.catch(() => {
+			console.log('rate bateu')
+			res.status(429).send('Too Many Requests') // Request exceeded the rate limit
+		})
+}
+
+app.use(rateLimiterClicksMiddleware)
 
 /**
  * funcao tokenKey middleware
@@ -834,10 +861,11 @@ app.post(
 )
 
 /**
- * função para ADM, que ira liberar o usuario de forma manual se precisar
+ * função para ADM, que ira liberar o usuario de forma manual se precisar,
+ * pode ser usado via Bot ou via Adm-Site
  */
 app.post(
-	'/updateAdmClick',
+	'/unblockClick',
 	authMiddleware,
 
 	async (req, res) => {

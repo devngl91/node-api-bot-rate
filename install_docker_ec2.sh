@@ -31,13 +31,12 @@ sudo service docker start
 
 sudo chmod 666 /var/run/docker.sock
 
-git clone https://github.com/devngl91/node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas.git
+git clone https://github.com/devngl91/node-api-bot-rate.git
 
-cd node-api-bot-rate-limit-9m8dya9osydn897abgsdnasdadasdas
+cd node-api-bot-rate
 
 npm install
 
-sleep 2
+sudo ufw enable 
 
-# sudo ufw enable 
-# docker-compose up -d
+docker-compose up -d

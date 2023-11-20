@@ -3,7 +3,7 @@ const app = express()
 const admin = require('firebase-admin')
 const credentials = require('./creds.json')
 const cors = require('cors')
-const allowMethods = require('allow-methods')
+const { allowMethods } = require('./libs/allow_methods')
 const rateLimit = require('express-rate-limit')
 require('dotenv').config()
 const port = process.env.NODE_LOCAL_PORTS
@@ -44,18 +44,6 @@ const port = process.env.NODE_LOCAL_PORTS
  * caso precise o ADM fazer isso.
  *
  */
-
-/**
- * Tratamento de bloqueio de METHOD
- * permitindo apenas metodos que serão utilizados
- */
-app.use(allowMethods(['get', 'post']))
-
-/**
- * middleware para envio max de dados com o express
- * limitando em 100mb o maximo de envio vindo do request
- */
-app.use(express.json({ limit: '100mb' }))
 
 /**
  * config de elementos do código que podem ser alterados diretamente, dessa forma
@@ -123,40 +111,61 @@ const configEnv = (config) => {
 }
 
 /**
- * ratelimit da aplicação para definir a carga vinda e evitar ataques
- * abaixo ja faz o uso de forma geral para todas as chamadas
- */
-// Apply rate limiting middleware
-const apiLimiter = rateLimit({
-	windowMs: 2 * 60 * 1000, // janela de 2/min
-	max: 500000, // limit de request pela janela : 500K
-	handler: function (req, res /*next*/) {
-		return res.status(429).json({
-			status_msg: 'blocked',
-			status_msg_declaration: 'to-many-requests',
-			status_resp:
-				'Identificamos muitas requisições, tente novamente daqui a alguns minutos!',
-		})
-	},
-})
-app.use(apiLimiter)
-
-/**
  * Tratamento de CORS
  * permitindo apenas domínios autorizados a acessar a API
  * e obter o retorno de feedback
  */
-var whitelist = ['http://localhost', 'http://example2.com']
+var whitelist = [
+	'http://localhost:3000',
+	'https://rate-click-lb.numerofake.com',
+	'https://rate-click-lb.mynumbervirtual.com',
+	'https://core1.numerofake.com',
+	'https://core1.mynumbervirtual.com',
+]
 var corsOptions = {
 	origin: function (origin, callback) {
+		console.log('origin-cors-returned:' + origin)
 		if (whitelist.indexOf(origin) !== -1) {
 			callback(null, true)
 		} else {
-			// callback(new Error('Request Not Allowed!'))
-			callback(null, false)
+			callback(new Error('Request Not Allowed on Cors!'))
 		}
 	},
 }
+app.use(cors(corsOptions))
+
+/**
+ * Tratamento de bloqueio de METHOD
+ * permitindo apenas metodos que serão utilizados
+ */
+app.use(allowMethods('get', 'post'))
+
+/**
+ * middleware para envio max de dados com o express
+ * limitando em 1000mb o maximo de envio vindo do request
+ */
+app.use(express.json({ limit: '1000mb' }))
+
+/**
+ * ratelimit da aplicação para definir a carga vinda e evitar ataques
+ * abaixo ja faz o uso de forma geral para todas as chamadas
+ */
+// Apply rate limiting middleware
+
+const apiLimiter = rateLimit({
+	windowMs: 1 * 60 * 1000, // janela de 1/min
+	max: 10000, // limit de request pela janela : 10K
+	handler: function (req, res /*next*/) {
+		return res.status(401).json({
+			status_msg: 'blocked',
+			status_msg_declaration: 'to-many-requests',
+			status_resp:
+				'Por favor, aguarde entre 1 e 2 minutos para tentar novamente.',
+		})
+	},
+})
+
+app.use(apiLimiter)
 
 /**
  * funcao tokenKey middleware
@@ -293,7 +302,7 @@ const sleepFunc = (sleepDuration) => {
  * paginar em proximas paginas os usuários, sem sobrecarregar o FRONT-END
  * que irá consumir essa lista
  */
-app.get('/listBlocked', authMiddleware, cors(corsOptions), async (req, res) => {
+app.get('/listBlocked', authMiddleware, async (req, res) => {
 	try {
 		const response = await collectionClick.get()
 		let responseArr = []
@@ -315,7 +324,7 @@ app.get('/listBlocked', authMiddleware, cors(corsOptions), async (req, res) => {
  * }
  */
 
-app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
+app.post('/addClick', authMiddleware, async (req, res) => {
 	// pegar o userId
 	const userId = req.body.userId
 
@@ -715,7 +724,7 @@ app.post('/addClick', authMiddleware, cors(corsOptions), async (req, res) => {
 app.post(
 	'/updateClick',
 	authMiddleware,
-	cors(corsOptions),
+
 	async (req, res) => {
 		// pegar o userId vindo do POST ( pelo CORE )
 		const userId = req.body.userId
@@ -799,7 +808,7 @@ app.post(
 app.post(
 	'/updateAdmClick',
 	authMiddleware,
-	cors(corsOptions),
+
 	async (req, res) => {
 		// pegar o userId vindo do POST ( pelo CORE )
 		const userId = req.body.userId
@@ -854,7 +863,7 @@ app.post(
  * 200 = success
  * 503 = service unavailable
  */
-app.get('/healthCheckApi', cors(corsOptions), async (req, res) => {
+app.get('/healthCheckApi', async (req, res) => {
 	try {
 		res.status(200).send({
 			status_msg: 'health',

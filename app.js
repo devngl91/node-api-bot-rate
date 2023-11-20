@@ -137,7 +137,7 @@ var corsOptions = {
 /**
  * trus proxy for express : prevent 502 bad gateway
  */
-app.set('trust proxy', true)
+app.set('trust proxy', 1)
 
 /**
  * Tratamento de bloqueio de METHOD
@@ -159,6 +159,7 @@ app.use(express.json({ limit: '1000mb' }))
 // Apply rate limiting middleware
 
 const apiLimiter = rateLimit({
+	validationsConfig: false,
 	windowMs: 1 * 60 * 1000, // janela de 1/min
 	max: 10000, // limit de request pela janela : 10K
 	handler: function (req, res /*next*/) {

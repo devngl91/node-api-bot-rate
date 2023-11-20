@@ -135,6 +135,11 @@ var corsOptions = {
 // app.use(cors(corsOptions))
 
 /**
+ * trus proxy for express : prevent 502 bad gateway
+ */
+app.set('trust proxy', true)
+
+/**
  * Tratamento de bloqueio de METHOD
  * permitindo apenas metodos que serão utilizados
  */
@@ -302,7 +307,7 @@ const sleepFunc = (sleepDuration) => {
  * paginar em proximas paginas os usuários, sem sobrecarregar o FRONT-END
  * que irá consumir essa lista
  */
-app.get('/listBlocked', async (req, res) => {
+app.get('/listBlocked', authMiddleware, async (req, res) => {
 	try {
 		const response = await collectionClick.get()
 		let responseArr = []
@@ -324,7 +329,7 @@ app.get('/listBlocked', async (req, res) => {
  * }
  */
 
-app.post('/addClick', async (req, res) => {
+app.post('/addClick', authMiddleware, async (req, res) => {
 	// pegar o userId
 	const userId = req.body.userId
 
@@ -723,6 +728,7 @@ app.post('/addClick', async (req, res) => {
  */
 app.post(
 	'/updateClick',
+	authMiddleware,
 
 	async (req, res) => {
 		// pegar o userId vindo do POST ( pelo CORE )
@@ -806,6 +812,7 @@ app.post(
  */
 app.post(
 	'/updateAdmClick',
+	authMiddleware,
 
 	async (req, res) => {
 		// pegar o userId vindo do POST ( pelo CORE )

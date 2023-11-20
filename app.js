@@ -6,7 +6,7 @@ const cors = require('cors')
 const { allowMethods } = require('./libs/allow_methods')
 const rateLimit = require('express-rate-limit')
 const { RateLimiterMemory } = require('rate-limiter-flexible')
-
+const validator = require('validator')
 require('dotenv').config()
 const port = process.env.NODE_LOCAL_PORTS
 
@@ -44,6 +44,8 @@ const port = process.env.NODE_LOCAL_PORTS
  *
  * listBlocked = lista os usuários bloqueados, para serem desbloqueados manual
  * caso precise o ADM fazer isso.
+ *
+ * unblockClick = desbloqueia os usuarios na hora, função de ADM
  *
  */
 
@@ -142,6 +144,9 @@ var corsOptions = {
 
 /**
  * trus proxy for express : prevent 502 bad gateway
+ * status : 1, permite todos
+ * se especificar o proxy, vai apenas responder ao proxy, e
+ * também responde array de proxy ['http://proxy1', 'http://proxy2']
  */
 app.set('trust proxy', 1)
 
@@ -190,7 +195,6 @@ const limiter = new RateLimiterMemory({
 	points: 1, // 1 request per seconds
 	duration: 1, // 1 seconds duration windows time
 })
-
 const rateLimiterClicksMiddleware = (req, res, next) => {
 	limiter
 		.consume(req.ip) // Track requests based on IP address
@@ -203,7 +207,6 @@ const rateLimiterClicksMiddleware = (req, res, next) => {
 			res.status(429).send('Too Many Requests') // Request exceeded the rate limit
 		})
 }
-
 app.use(rateLimiterClicksMiddleware)
 
 /**
@@ -254,6 +257,38 @@ const authMiddleware = async (req, res, next) => {
 }
 
 /**
+ * trata as chamadas vindas, antes de executar, de forma a retirar qualquer
+ * tentativa de DDOS, XSS, e outros ataques, e também trato a chamada que vem
+ * do POST, definindo que a informação vinda, seja o que quero que seja
+ * String, Num, Int, Mail, Etc
+ *
+ * função 1 do validator : com o ( type ) nao informado, ele vai retirar todos
+ * os caracteres especiais, espaços, tudo e deixar apenas StringNumeric
+ *
+ * função 2 do validator : com o ( type ) ele define qual o tipo de validação
+ * que deve ser feito, se é String, Numeric, Int e retorna se o tipo desejado
+ * é o tipo que veio, caso não, retorna uma mensagem negando a continuação
+ * da requisição
+ *
+ * Uma forma de previnir "injeções de informações" para bugar o sistema
+ *
+ */
+const validatorInputs = (input, type = null) => {
+	let inputCheck = false
+
+	if (type) {
+		if (type == 'isNumeric') {
+			inputCheck = validator.isNumeric(input)
+		} else if (type == 'isString') {
+			inputCheck = validator.isNumeric(input)
+		}
+	} else {
+		inputCheck = input.replace(/[\s~`!@#$%^&*()_+\-={[}\]|\\:;"'<,>.?/]+/g, '')
+	}
+	return inputCheck
+}
+
+/**
  * Inicialização firebase/firestore App
  */
 admin.initializeApp({
@@ -264,7 +299,6 @@ const db = admin.firestore()
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// const collectionClick = db.collection(configEnv('COLLECTION'))
 const collectionClick = db.collection(configEnv('COLLECTION'))
 
 /**
@@ -365,8 +399,18 @@ app.get('/listBlocked', authMiddleware, async (req, res) => {
  */
 
 app.post('/addClick', authMiddleware, async (req, res) => {
-	// pegar o userId
-	const userId = req.body.userId
+	// pega e valida userId tirando tudo que tiver de special character
+	const userId = validatorInputs(req.body.userId)
+
+	// valida o tipo do input vindo, p/ saber se ele é o esperado
+	let validatorCheck = validatorInputs(userId, 'isNumeric')
+	if (!validatorCheck) {
+		return res.status(401).send({
+			status_msg: 'denied',
+			status_msg_declaration: 'validator-input-invalid',
+			status_resp: 'Request not authorized - Inform to ADM the code : #VC401',
+		})
+	}
 
 	// cria uma nova data de expiração ( baseado no time )
 	const dateClickNow = dateFunc()
@@ -783,7 +827,18 @@ app.post(
 
 	async (req, res) => {
 		// pegar o userId vindo do POST ( pelo CORE )
-		const userId = req.body.userId
+		// pega e valida userId tirando tudo que tiver de special character
+		const userId = validatorInputs(req.body.userId)
+
+		// valida o tipo do input vindo, p/ saber se ele é o esperado
+		let validatorCheck = validatorInputs(userId, 'isNumeric')
+		if (!validatorCheck) {
+			return res.status(401).send({
+				status_msg: 'denied',
+				status_msg_declaration: 'validator-input-invalid',
+				status_resp: 'Request not authorized - Inform to ADM the code : #VC401',
+			})
+		}
 
 		// define a data Expired como a data de agora
 		const dateClickNow = dateFunc()
@@ -870,7 +925,18 @@ app.post(
 
 	async (req, res) => {
 		// pegar o userId vindo do POST ( pelo CORE )
-		const userId = req.body.userId
+		// pega e valida userId tirando tudo que tiver de special character
+		const userId = validatorInputs(req.body.userId)
+
+		// valida o tipo do input vindo, p/ saber se ele é o esperado
+		let validatorCheck = validatorInputs(userId, 'isNumeric')
+		if (!validatorCheck) {
+			return res.status(401).send({
+				status_msg: 'denied',
+				status_msg_declaration: 'validator-input-invalid',
+				status_resp: 'Request not authorized - Inform to ADM the code : #VC401',
+			})
+		}
 
 		// define a data Expired como a data de agora
 		const dateClickNow = dateFunc()

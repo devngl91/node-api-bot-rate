@@ -146,6 +146,7 @@ app.set('trust proxy', true)
 app.use(allowMethods('get', 'post'))
 
 /**
+ *
  * middleware para envio max de dados com o express
  * limitando em 1000mb o maximo de envio vindo do request
  */

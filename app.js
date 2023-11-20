@@ -289,7 +289,9 @@ const validatorInputs = (input, type = null) => {
 			inputCheck = validator.isNumeric(input)
 		}
 	} else {
-		inputCheck = input.replace(/[\s~`!@#$%^&*()_+\-={[}\]|\\:;"'<,>.?/]+/g, '')
+		inputCheck = input
+			.toString()
+			.replace(/[\s~`!@#$%^&*()_+\-={[}\]|\\:;"'<,>.?/]+/g, '')
 	}
 	return inputCheck
 }

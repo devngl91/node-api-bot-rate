@@ -83,7 +83,7 @@ const configEnv = (config) => {
 		configReturn = 3 // aviso flood
 	}
 	if (config == 'FLOOD_1_LIMIT') {
-		configReturn = 7 // block 1
+		configReturn = 5 // block 1
 	}
 	if (config == 'FLOOD_2_LIMIT') {
 		configReturn = 10 // block 2
@@ -173,9 +173,9 @@ app.use(express.json({ limit: '20mb' }))
 const apiLimiter = rateLimit({
 	validationsConfig: false,
 	windowMs: 1 * 60 * 1000, // janela de 1/min
-	max: 10000, // limit de request pela janela : 10K
+	max: 50000, // limit de request pela janela : 10K
 	handler: function (req, res /*next*/) {
-		return res.status(400).json({
+		return res.status(401).json({
 			status_msg: 'blocked',
 			status_msg_declaration: 'to-many-requests',
 			status_resp:
@@ -190,21 +190,27 @@ app.use(apiLimiter)
  * rate limit points
  * forma de controlar os clicks do usuario, e evitar que ele click muitas vezes,
  * assim ele clica 5x, mas apenas 1 click vai passar.
+ * config atual : se em 5 segundos o usuário clicar 5x, significa que está
+ * cometendo flood e não deve proceder com os clicks abusivos, travando antes
+ * de chegar ao firebase
  */
 const limiter = new RateLimiterMemory({
-	points: 1, // 1 request per seconds
-	duration: 1, // 1 seconds duration windows time
+	points: 5, // 5 request per seconds
+	duration: 5, // 5 seconds duration windows time
 })
 const rateLimiterClicksMiddleware = (req, res, next) => {
 	limiter
 		.consume(req.ip) // Track requests based on IP address
 		.then(() => {
-			console.log('rate passou')
 			next() // Request within the rate limit, proceed to the next middleware
 		})
 		.catch(() => {
-			console.log('rate bateu')
-			res.status(429).send('Too Many Requests') // Request exceeded the rate limit
+			return res.status(401).json({
+				status_msg: 'denied',
+				status_msg_declaration: 'abuse-click',
+				status_resp:
+					'Por favor, clique apenas 1x no menu que deseja acessar e aguarde o retorno da sua requisição!',
+			})
 		})
 }
 app.use(rateLimiterClicksMiddleware)
@@ -403,6 +409,8 @@ app.get('/listBlocked', authMiddleware, async (req, res) => {
 app.post('/addClick', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
+
+	console.log('request:' + req.method)
 
 	// valida o tipo do input vindo, p/ saber se ele é o esperado
 	let validatorCheck = validatorInputs(userId, 'isNumeric')
@@ -949,7 +957,7 @@ app.post(
 			if (doc.exists) {
 				try {
 					// sleep para da um "extra delay" na liberação do usuário
-					sleepFunc(1000)
+					// sleepFunc(1000)
 
 					const data = {
 						clicks: 0,

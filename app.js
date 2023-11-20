@@ -54,6 +54,10 @@ const configEnv = (config) => {
 	// define o time de GMT a diminuir da hora atual, caso esteja divergente do Brasil
 	let configReturn = null
 
+	if (config == 'COLECTION') {
+		configReturn = 'clickLimitNovo'
+	}
+
 	if (config == 'TIME_SYNC_GMT') {
 		configReturn = 3
 	}
@@ -233,7 +237,7 @@ const db = admin.firestore()
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-const collectionClick = db.collection(process.env.COLLECTION_CLICK)
+const collectionClick = db.collection(configEnv('COLLECTION'))
 
 /**
  * tratamento de data

@@ -449,7 +449,7 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 				checkUser.set(dataJSON)
 				res.status(200).send({
 					status_msg: 'allow',
-					status_msg_declaration: 'click-allow',
+					status_msg_declaration: 'click-allow-1',
 					status_resp: dateMileToDefault(dateClickInitial, 'time'),
 				})
 			} catch (error) {

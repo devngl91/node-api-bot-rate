@@ -132,7 +132,7 @@ var whitelist = [
 ]
 var corsOptions = {
 	origin: function (origin, callback) {
-		console.log('origin-cors-returned:' + origin)
+		// console.log('origin-cors-returned:' + origin)
 		if (whitelist.indexOf(origin) !== -1) {
 			callback(null, true)
 		} else {
@@ -412,7 +412,11 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
 
-	console.log('request:' + req.method)
+	// console.log('request:' + req.method)
+
+	return res.status(200).send({
+		status_msg_declaration: 'LB-1',
+	})
 
 	// valida o tipo do input vindo, p/ saber se ele é o esperado
 	let validatorCheck = validatorInputs(userId, 'isNumeric')
@@ -449,7 +453,7 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 				checkUser.set(dataJSON)
 				res.status(200).send({
 					status_msg: 'allow',
-					status_msg_declaration: 'click-allow-1',
+					status_msg_declaration: 'click-allow',
 					status_resp: dateMileToDefault(dateClickInitial, 'time'),
 				})
 			} catch (error) {

@@ -302,7 +302,7 @@ const sleepFunc = (sleepDuration) => {
  * paginar em proximas paginas os usuários, sem sobrecarregar o FRONT-END
  * que irá consumir essa lista
  */
-app.get('/listBlocked', authMiddleware, async (req, res) => {
+app.get('/listBlocked', async (req, res) => {
 	try {
 		const response = await collectionClick.get()
 		let responseArr = []
@@ -324,7 +324,7 @@ app.get('/listBlocked', authMiddleware, async (req, res) => {
  * }
  */
 
-app.post('/addClick', authMiddleware, async (req, res) => {
+app.post('/addClick', async (req, res) => {
 	// pegar o userId
 	const userId = req.body.userId
 
@@ -723,7 +723,6 @@ app.post('/addClick', authMiddleware, async (req, res) => {
  */
 app.post(
 	'/updateClick',
-	authMiddleware,
 
 	async (req, res) => {
 		// pegar o userId vindo do POST ( pelo CORE )
@@ -807,7 +806,6 @@ app.post(
  */
 app.post(
 	'/updateAdmClick',
-	authMiddleware,
 
 	async (req, res) => {
 		// pegar o userId vindo do POST ( pelo CORE )

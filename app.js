@@ -173,7 +173,7 @@ app.use(express.json({ limit: '20mb' }))
 const apiLimiter = rateLimit({
 	validationsConfig: false,
 	windowMs: 1 * 60 * 1000, // janela de 1/min
-	max: 20000, // limit de request pela janela : 20K de clicks por minuto
+	max: 30000, // limit de request pela janela : 30K de clicks por minuto
 	handler: function (req, res /*next*/) {
 		return res.status(429).json({
 			status_msg: 'blocked',
@@ -248,7 +248,7 @@ const authMiddleware = async (req, res, next) => {
 			return res.status(400).json({
 				status_msg: 'denied',
 				status_msg_declaration: 'invalid-token',
-				status_resp: 'Invalid token!',
+				status_resp: 'Invalid token! ( TEST CI/CD )',
 			})
 		}
 		next()

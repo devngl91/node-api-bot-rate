@@ -14,4 +14,4 @@ jobs:
         run: echo 'NODE_LOCAL_PORTS=${{ secrets.NODE_LOCAL_PORTS }} NODE_DOCKER_PORTS=${{ secrets.NODE_DOCKER_PORTS }} TOKEN_KEY_API=${{ secrets.TOKEN_KEY_API }}' > .env
 
       - name: Run build
-        run: docker-compoe up -d
+        run: docker-compose up -d

@@ -14,7 +14,7 @@ RUN apk add bash
 COPY package*.json ./
 
 # Instala pre-installer para forçar itens que são considerados unsafe 
-RUN sudo npm install --unsafe-perm=true -g now
+RUN npm install --unsafe-perm=true -g now
 
 # Executa npm install para adicionar as dependências e criar a pasta node_modules
 RUN npm install

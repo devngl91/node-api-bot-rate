@@ -173,13 +173,13 @@ app.use(express.json({ limit: '20mb' }))
 const apiLimiter = rateLimit({
 	validationsConfig: false,
 	windowMs: 1 * 60 * 1000, // janela de 1/min
-	max: 50000, // limit de request pela janela : 10K
+	max: 20000, // limit de request pela janela : 20K de clicks por minuto
 	handler: function (req, res /*next*/) {
 		return res.status(401).json({
 			status_msg: 'blocked',
 			status_msg_declaration: 'to-many-requests',
 			status_resp:
-				'Por favor, aguarde entre 1 e 2 minutos para tentar novamente.',
+				'Identificamos sua requisição como Flood. Por favor tente novamente em alguns minutos, ou você será bloqueado.',
 		})
 	},
 })

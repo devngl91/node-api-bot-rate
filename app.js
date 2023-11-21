@@ -248,7 +248,7 @@ const authMiddleware = async (req, res, next) => {
 			return res.status(400).json({
 				status_msg: 'denied',
 				status_msg_declaration: 'invalid-token',
-				status_resp: 'Invalid token! ( TEST CI/CD ) Testing 3..',
+				status_resp: 'Invalid token! ( TEST CI/CD ) Testing 3A..',
 			})
 		}
 		next()

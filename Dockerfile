@@ -13,7 +13,10 @@ RUN apk add bash
 # Copia tudo que começa com package e termina com .json para dentro da pasta /usr/app
 COPY package*.json ./
 
-## Executa npm install para adicionar as dependências e criar a pasta node_modules
+# Instala pre-installer para forçar itens que são considerados unsafe 
+RUN npm set unsafe-perm true
+
+# Executa npm install para adicionar as dependências e criar a pasta node_modules
 RUN npm install
 
 # Copia tudo do dir local para o dir do container

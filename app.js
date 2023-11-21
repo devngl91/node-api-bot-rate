@@ -175,7 +175,7 @@ const apiLimiter = rateLimit({
 	windowMs: 1 * 60 * 1000, // janela de 1/min
 	max: 20000, // limit de request pela janela : 20K de clicks por minuto
 	handler: function (req, res /*next*/) {
-		return res.status(401).json({
+		return res.status(429).json({
 			status_msg: 'blocked',
 			status_msg_declaration: 'to-many-requests',
 			status_resp:
@@ -205,11 +205,11 @@ const rateLimiterClicksMiddleware = (req, res, next) => {
 			next() // Request within the rate limit, proceed to the next middleware
 		})
 		.catch(() => {
-			return res.status(401).json({
+			return res.status(406).json({
 				status_msg: 'denied',
 				status_msg_declaration: 'abuse-click',
 				status_resp:
-					'Por favor, clique apenas 1x no menu que deseja acessar e aguarde o retorno da sua requisição!',
+					'Por favor, clique apenas 1x e aguarde o retorno da sua requisição. Evite ser bloqueado por abuso de Flood!',
 			})
 		})
 }
@@ -226,7 +226,7 @@ const authMiddleware = async (req, res, next) => {
 	const contentType = req.header('Content-Type')
 	// valida se veio token
 	if (!token) {
-		return res.status(401).json({
+		return res.status(400).json({
 			status_msg: 'denied',
 			status_msg_declaration: 'no-token-provided',
 			status_resp: 'No token provided!',
@@ -234,7 +234,7 @@ const authMiddleware = async (req, res, next) => {
 	}
 	// valida se content type é valido
 	if (!contentType || contentType != 'application/json') {
-		return res.status(401).json({
+		return res.status(400).json({
 			status_msg: 'denied',
 			status_msg_declaration: 'content-type-not-allowed',
 			status_resp: 'Content Type not allowed!',
@@ -245,7 +245,7 @@ const authMiddleware = async (req, res, next) => {
 		// verifica o token do .ENV com o token vindo
 		const tokenKeyEnv = process.env.TOKEN_KEY_API
 		if (token != tokenKeyEnv) {
-			return res.status(401).json({
+			return res.status(400).json({
 				status_msg: 'denied',
 				status_msg_declaration: 'invalid-token',
 				status_resp: 'Invalid token!',
@@ -417,10 +417,11 @@ app.post('/addClick', authMiddleware, async (req, res) => {
 	// valida o tipo do input vindo, p/ saber se ele é o esperado
 	let validatorCheck = validatorInputs(userId, 'isNumeric')
 	if (!validatorCheck) {
-		return res.status(401).send({
+		return res.status(409).send({
 			status_msg: 'denied',
 			status_msg_declaration: 'validator-input-invalid',
-			status_resp: 'Request not authorized - Inform to ADM the code : #VC401',
+			status_resp:
+				'Sua requisição não foi permitida. Reporte ao ADM o código : #VII409',
 		})
 	}
 
@@ -845,10 +846,11 @@ app.post(
 		// valida o tipo do input vindo, p/ saber se ele é o esperado
 		let validatorCheck = validatorInputs(userId, 'isNumeric')
 		if (!validatorCheck) {
-			return res.status(401).send({
+			return res.status(409).send({
 				status_msg: 'denied',
 				status_msg_declaration: 'validator-input-invalid',
-				status_resp: 'Request not authorized - Inform to ADM the code : #VC401',
+				status_resp:
+					'Sua requisição não foi permitida. Reporte ao ADM o código : #VII409',
 			})
 		}
 
@@ -861,7 +863,7 @@ app.post(
 			if (doc.exists) {
 				try {
 					// sleep para da um "extra delay" na liberação do usuário
-					sleepFunc(1000)
+					// sleepFunc(1000)
 
 					// verifica se o usuário vindo está bloqueado, se sim, não libera
 					let blockLevelActual = doc.data().blockLevel
@@ -943,10 +945,11 @@ app.post(
 		// valida o tipo do input vindo, p/ saber se ele é o esperado
 		let validatorCheck = validatorInputs(userId, 'isNumeric')
 		if (!validatorCheck) {
-			return res.status(401).send({
+			return res.status(409).send({
 				status_msg: 'denied',
 				status_msg_declaration: 'validator-input-invalid',
-				status_resp: 'Request not authorized - Inform to ADM the code : #VC401',
+				status_resp:
+					'Sua requisição não foi permitida. Reporte ao ADM o código : #VII409',
 			})
 		}
 

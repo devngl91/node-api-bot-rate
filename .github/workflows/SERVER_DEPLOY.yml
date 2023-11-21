@@ -1,0 +1,17 @@
+name: SERVER_DEPLOY
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  Build:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@main
+      - name: Create .env ( file )
+        run: echo -e 'NODE_LOCAL_PORTS=${{ secrets.NODE_LOCAL_PORTS }}\r\nNODE_DOCKER_PORTS=${{ secrets.NODE_DOCKER_PORTS }}\r\nTOKEN_KEY_API=${{ secrets.TOKEN_KEY_API }}' >> .env
+
+      - name: Run build
+        run: docker-compose up -d

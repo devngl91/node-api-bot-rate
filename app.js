@@ -349,6 +349,10 @@ const dateFunc = (calculation = null, time = null) => {
 const dateMileToDefault = (timestamp, type) => {
 	const date = new Date(timestamp)
 	let dateFormat
+	let dateFormatJoin
+	let dateDay
+	let dateMonth
+	let dateYear
 
 	if (type == 'date') {
 		// filtra o tipo de data, para mostrar a data completa + hora para o callback
@@ -362,9 +366,13 @@ const dateMileToDefault = (timestamp, type) => {
 		result = myArr.split(':')
 		// faz o split e subtração da hora p/ corrigir ( em 3 hrs abaixo )
 		//FIXME: chamada .env não funciona ( TIME_SYNC_GMT) on tem [-3+]
-		// dateFormat =
-		// 	result[0] - configEnv('TIME_SYNC_GMT') + ':' + result[1] + ':' + result[2]
-		dateFormat = result[0] + ':' + result[1] + ':' + result[2]
+
+		dateDay = result[0] - configEnv('TIME_SYNC_GMT') // force down ( hour timezone )
+		dateMonth = result[1]
+		dateYear = result[2]
+
+		dateFormatJoin = `${dateDay}:${dateMonth}:${dateYear}` // 11:11:11
+		dateFormat = dateFormatJoin
 	}
 	return dateFormat
 }

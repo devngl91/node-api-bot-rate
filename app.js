@@ -375,7 +375,8 @@ const dateMileToDefault = (timestamp, type) => {
 
 	if (type == 'date') {
 		// filtra o tipo de data, para mostrar a data completa + hora para o callback
-		dateFormat = date.toLocaleString('pt-BR')
+		// dateFormat = date.toLocaleString('pt-BR')
+		dateFormat = date.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 	} else {
 		// filtra o tipo de data, par amostrar apenas a hora pra o callback
 		dateFormat = date.toLocaleTimeString('pt-BR')
@@ -1097,12 +1098,117 @@ app.post('/rateBuy1', authMiddleware, async (req, res) => {
 	// verifica se ja existe o userId no banco
 	const checkUser = collectionBuy.doc('' + userId + '')
 	checkUser.get().then((doc) => {
-		// verifica se existe registro, pois assim evita error no codigo e restart
-		if (doc.exists) {
-			// verifica se o usuario existe - caso não, faz o cadastro
-			if (!doc.exists) {
+		// verifica se o usuario existe - caso não, faz o cadastro
+		if (!doc.exists) {
+			try {
+				checkUser.set(data)
+				res.status(200).send({
+					status_msg: 'allow',
+					status_msg_declaration: 'buy-allow',
+					status_resp: dateMileToDefault(dateClickInitial, 'time'),
+					status_type: 'date',
+				})
+			} catch (error) {
+				res.status(400).send({
+					status_msg: 'error',
+					status_msg_declaration: 'buy-allow-error-1',
+					status_resp: error,
+					status_type: 'text',
+				})
+			}
+		} else {
+			// o usuario ja existe
+
+			/**
+			 * verifica se status > 0
+			 * IF YES : significa que já existe 1 compra em endamento e não permite novas
+			 * IF NO : significa que não existe compra em andamento e permite
+			 */
+			// if (doc.data().status == 'on' || doc.data().blockLevel != null) {
+			if (doc.data().status > 0) {
+				/**
+				 * verificar expiredAt
+				 * verifica se o expiredAt esta "pendente" de ser zerado,
+				 * caso SIM, pode ter sido porque a função [2] "não foi chamada"
+				 * para fazer a limpeza, então aqui, força uma limpeza, para garantir
+				 * a não interrupção da interação do usuário no sistema
+				 */
+
+				// pega a data salva atual de expiração
+				const dateClickExpiration = doc.data().expiredAt
+
+				// verifica se a dataAtual é > que a dataExpiração - e faz um zerar status = 0 ( force)
+				if (dateClickNow > dateClickExpiration) {
+					try {
+						const data = {
+							status: 1,
+							numberCode: null,
+							updatedAt: dateClickNow,
+							expiredAt: dateClickInitial,
+						}
+
+						/**
+							* 
+							aqui faz a atualização com o status 1 + data do updated + data expired nova
+							mantendo status 1 : requisições futuras não irão passar de ( 1 )
+							assim, quando o sistema "liberar" e avisar que está liberado p/ o usuário, 
+							ele já estará enviando uma nova requisição, pois aqui não é o CLICK,
+							e sim, essa rota apenas irá processar requisições de compra.
+
+						  */
+						const updateUserById = collectionBuy
+							.doc('' + userId + '')
+							.update(data)
+
+						res.status(200).send({
+							status_msg: 'allow',
+							status_msg_declaration: 'buy-allow',
+							status_resp: dateMileToDefault(dateClickExpiration, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'buy-allow-error-2',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				} else {
+					// aqui a dataAtual é < que a dataExpiração - então não permite novas compras
+
+					try {
+						res.status(401).send({
+							status_msg: 'denied',
+							status_msg_declaration: 'buy-denied-pending-process',
+							status_resp: dateMileToDefault(dateClickExpiration, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'buy-allow-error-3',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				}
+			} else {
+				// status atual : off
+				// faz o status : on ( novamente ), pois aqui o usuário voltou a clicar
+				// e considera um block pois o usuário já clicou e o expiredAt ainda pendente
 				try {
-					checkUser.set(data)
+					const data = {
+						status: 1,
+						numberCode: null,
+						expiredAt: dateClickInitial,
+					}
+
+					// aqui faz a atualização com o status on + data do expiredAt p/ expiração
+					const updateUserById = collectionBuy
+						.doc('' + userId + '')
+						.update(data)
+
 					res.status(200).send({
 						status_msg: 'allow',
 						status_msg_declaration: 'buy-allow',
@@ -1112,118 +1218,10 @@ app.post('/rateBuy1', authMiddleware, async (req, res) => {
 				} catch (error) {
 					res.status(400).send({
 						status_msg: 'error',
-						status_msg_declaration: 'buy-allow-error-1',
+						status_msg_declaration: 'buy-in-execution-error',
 						status_resp: error,
 						status_type: 'text',
 					})
-				}
-			} else {
-				// o usuario ja existe
-
-				/**
-				 * verifica se status > 0
-				 * IF YES : significa que já existe 1 compra em endamento e não permite novas
-				 * IF NO : significa que não existe compra em andamento e permite
-				 */
-				// if (doc.data().status == 'on' || doc.data().blockLevel != null) {
-				if (doc.data().status > 0) {
-					/**
-					 * verificar expiredAt
-					 * verifica se o expiredAt esta "pendente" de ser zerado,
-					 * caso SIM, pode ter sido porque a função [2] "não foi chamada"
-					 * para fazer a limpeza, então aqui, força uma limpeza, para garantir
-					 * a não interrupção da interação do usuário no sistema
-					 */
-
-					// pega a data salva atual de expiração
-					const dateClickExpiration = doc.data().expiredAt
-
-					// verifica se a dataAtual é > que a dataExpiração - e faz um zerar status = 0 ( force)
-					if (dateClickNow > dateClickExpiration) {
-						try {
-							const data = {
-								status: 1,
-								numberCode: null,
-								updatedAt: dateClickNow,
-								expiredAt: dateClickInitial,
-							}
-
-							/**
-							* 
-							aqui faz a atualização com o status 1 + data do updated + data expired nova
-							mantendo status 1 : requisições futuras não irão passar de ( 1 )
-							assim, quando o sistema "liberar" e avisar que está liberado p/ o usuário, 
-							ele já estará enviando uma nova requisição, pois aqui não é o CLICK,
-							e sim, essa rota apenas irá processar requisições de compra.
-
-						  */
-							const updateUserById = collectionBuy
-								.doc('' + userId + '')
-								.update(data)
-
-							res.status(200).send({
-								status_msg: 'allow',
-								status_msg_declaration: 'buy-allow',
-								status_resp: dateMileToDefault(dateClickExpiration, 'time'),
-								status_type: 'date',
-							})
-						} catch (error) {
-							res.status(400).send({
-								status_msg: 'error',
-								status_msg_declaration: 'buy-allow-error-2',
-								status_resp: error,
-								status_type: 'text',
-							})
-						}
-					} else {
-						// aqui a dataAtual é < que a dataExpiração - então não permite novas compras
-
-						try {
-							res.status(401).send({
-								status_msg: 'denied',
-								status_msg_declaration: 'buy-denied-pending-process',
-								status_resp: dateMileToDefault(dateClickExpiration, 'time'),
-								status_type: 'date',
-							})
-						} catch (error) {
-							res.status(400).send({
-								status_msg: 'error',
-								status_msg_declaration: 'buy-allow-error-3',
-								status_resp: error,
-								status_type: 'text',
-							})
-						}
-					}
-				} else {
-					// status atual : off
-					// faz o status : on ( novamente ), pois aqui o usuário voltou a clicar
-					// e considera um block pois o usuário já clicou e o expiredAt ainda pendente
-					try {
-						const data = {
-							status: 1,
-							numberCode: null,
-							expiredAt: dateClickInitial,
-						}
-
-						// aqui faz a atualização com o status on + data do expiredAt p/ expiração
-						const updateUserById = collectionBuy
-							.doc('' + userId + '')
-							.update(data)
-
-						res.status(200).send({
-							status_msg: 'allow',
-							status_msg_declaration: 'buy-allow',
-							status_resp: dateMileToDefault(dateClickInitial, 'time'),
-							status_type: 'date',
-						})
-					} catch (error) {
-						res.status(400).send({
-							status_msg: 'error',
-							status_msg_declaration: 'buy-in-execution-error',
-							status_resp: error,
-							status_type: 'text',
-						})
-					}
 				}
 			}
 		}

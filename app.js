@@ -89,6 +89,12 @@ const configEnv = (config) => {
 		configReturn = 10
 	}
 
+	// tempo default do timeout de click feito - caso a aplicação não libere antes
+	// defini para inicio : 10segundos
+	if (config == 'FLOOD_TIMEOUT_DEFAULT_2') {
+		configReturn = 20
+	}
+
 	// limite de clicks para atingir o flood + block
 	if (config == 'FLOOD_0_LIMIT') {
 		configReturn = 3 // aviso flood
@@ -303,12 +309,16 @@ const validatorInputs = (input, type = null) => {
 		if (type == 'isNumeric') {
 			inputCheck = validator.isNumeric(input)
 		} else if (type == 'isString') {
-			inputCheck = validator.isNumeric(input)
+			inputCheck = validator.isString(input)
 		}
 	} else {
-		inputCheck = input
-			.toString()
-			.replace(/[\s~`!@#$%^&*()_+\-={[}\]|\\:;"'<,>.?/]+/g, '')
+		if (input == undefined || input == null || input == '' || input <= 0) {
+			inputCheck = input
+		} else {
+			inputCheck = input
+				.toString()
+				.replace(/[\s~`!@#$%^&*()_+\-={[}\]|\\:;"'<,>.?/]+/g, '')
+		}
 	}
 	return inputCheck
 }
@@ -1066,478 +1076,58 @@ app.post('/rateBuy1', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
 
-	// console.log('request:' + req.method)
-
-	// valida o tipo do input vindo, p/ saber se ele é o esperado
-	let validatorCheck = validatorInputs(userId, 'isNumeric')
-	if (!validatorCheck) {
+	if (userId == undefined || userId <= 0 || !userId || userId == '') {
 		return res.status(409).send({
 			status_msg: 'denied',
-			status_msg_declaration: 'validator-input-invalid',
-			status_resp:
-				'Sua requisição não foi permitida. Reporte ao ADM o código : #VII410',
+			status_msg_declaration: 'validator-input-not-fill',
+			status_resp: 'Prencha o userId',
 			status_type: 'text',
 		})
-	}
-
-	// cria uma nova data de expiração ( baseado no time )
-	const dateClickNow = dateFunc()
-	// usa o tempo default 10/secs para uma expiração máxima
-	const dateClickInitial = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT'))
-
-	// monta os dados para insert
-	const data = {
-		userId: userId,
-		status: 1,
-		numberCode: null,
-		createdAt: dateClickNow,
-		expiredAt: dateClickInitial,
-		updatedAt: null,
-	}
-
-	// verifica se ja existe o userId no banco
-	const checkUser = collectionBuy.doc('' + userId + '')
-	checkUser.get().then((doc) => {
-		// verifica se o usuario existe - caso não, faz o cadastro
-		if (!doc.exists) {
-			try {
-				checkUser.set(data)
-				res.status(200).send({
-					status_msg: 'allow',
-					status_msg_declaration: 'buy-allow',
-					status_resp: dateMileToDefault(dateClickInitial, 'time'),
-					status_type: 'date',
-				})
-			} catch (error) {
-				res.status(400).send({
-					status_msg: 'error',
-					status_msg_declaration: 'buy-allow-error-1',
-					status_resp: error,
-					status_type: 'text',
-				})
-			}
-		} else {
-			// o usuario ja existe
-
-			/**
-			 * verifica se status > 0
-			 * IF YES : significa que já existe 1 compra em endamento e não permite novas
-			 * IF NO : significa que não existe compra em andamento e permite
-			 */
-			// if (doc.data().status == 'on' || doc.data().blockLevel != null) {
-			if (doc.data().status > 0) {
-				/**
-				 * verificar expiredAt
-				 * verifica se o expiredAt esta "pendente" de ser zerado,
-				 * caso SIM, pode ter sido porque a função [2] "não foi chamada"
-				 * para fazer a limpeza, então aqui, força uma limpeza, para garantir
-				 * a não interrupção da interação do usuário no sistema
-				 */
-
-				// pega a data salva atual de expiração
-				const dateClickExpiration = doc.data().expiredAt
-
-				// verifica se a dataAtual é > que a dataExpiração - e faz um zerar status = 0 ( force)
-				if (dateClickNow > dateClickExpiration) {
-					try {
-						const data = {
-							status: 1,
-							numberCode: null,
-							updatedAt: dateClickNow,
-							expiredAt: dateClickInitial,
-						}
-
-						/**
-							* 
-							aqui faz a atualização com o status 1 + data do updated + data expired nova
-							mantendo status 1 : requisições futuras não irão passar de ( 1 )
-							assim, quando o sistema "liberar" e avisar que está liberado p/ o usuário, 
-							ele já estará enviando uma nova requisição, pois aqui não é o CLICK,
-							e sim, essa rota apenas irá processar requisições de compra.
-
-						  */
-						const updateUserById = collectionBuy
-							.doc('' + userId + '')
-							.update(data)
-
-						res.status(200).send({
-							status_msg: 'allow',
-							status_msg_declaration: 'buy-allow',
-							status_resp: dateMileToDefault(dateClickExpiration, 'time'),
-							status_type: 'date',
-						})
-					} catch (error) {
-						res.status(400).send({
-							status_msg: 'error',
-							status_msg_declaration: 'buy-allow-error-2',
-							status_resp: error,
-							status_type: 'text',
-						})
-					}
-				} else {
-					// aqui a dataAtual é < que a dataExpiração - então não permite novas compras
-
-					try {
-						res.status(401).send({
-							status_msg: 'denied',
-							status_msg_declaration: 'buy-denied-pending-process',
-							status_resp: dateMileToDefault(dateClickExpiration, 'time'),
-							status_type: 'date',
-						})
-					} catch (error) {
-						res.status(400).send({
-							status_msg: 'error',
-							status_msg_declaration: 'buy-allow-error-3',
-							status_resp: error,
-							status_type: 'text',
-						})
-					}
-				}
-			} else {
-				// status atual : off
-				// faz o status : on ( novamente ), pois aqui o usuário voltou a clicar
-				// e considera um block pois o usuário já clicou e o expiredAt ainda pendente
-				try {
-					const data = {
-						status: 1,
-						numberCode: null,
-						expiredAt: dateClickInitial,
-					}
-
-					// aqui faz a atualização com o status on + data do expiredAt p/ expiração
-					const updateUserById = collectionBuy
-						.doc('' + userId + '')
-						.update(data)
-
-					res.status(200).send({
-						status_msg: 'allow',
-						status_msg_declaration: 'buy-allow',
-						status_resp: dateMileToDefault(dateClickInitial, 'time'),
-						status_type: 'date',
-					})
-				} catch (error) {
-					res.status(400).send({
-						status_msg: 'error',
-						status_msg_declaration: 'buy-in-execution-error',
-						status_resp: error,
-						status_type: 'text',
-					})
-				}
-			}
-		}
-	})
-})
-
-/**
- * recebe o numero do pedido + valida retorno p/ proxima fase do sistema
- * vira apenas
- * {
- *  "userId" : "idDoUser000",
- *  "numberCode" : "12039784986"
- * }
- */
-
-app.post('/rateBuy2', authMiddleware, async (req, res) => {
-	// pega e valida userId tirando tudo que tiver de special character
-	const userId = validatorInputs(req.body.userId)
-	const numberCode = validatorInputs(req.body.numberCode)
-
-	// console.log('request:' + req.method)
-
-	// valida o tipo do input vindo, p/ saber se ele é o esperado
-	let validatorCheck = validatorInputs(userId, 'isNumeric')
-	if (!validatorCheck) {
-		return res.status(409).send({
-			status_msg: 'denied',
-			status_msg_declaration: 'validator-input-invalid',
-			status_resp:
-				'Sua requisição não foi permitida. Reporte ao ADM o código : #VII412',
-			status_type: 'text',
-		})
-	}
-
-	// valida o tipo do input vindo, p/ saber se ele é o esperado
-	let validatorCheck2 = validatorInputs(numberCode, 'isNumeric')
-	if (!validatorCheck2) {
-		return res.status(409).send({
-			status_msg: 'denied',
-			status_msg_declaration: 'validator-input-invalid',
-			status_resp:
-				'Sua requisição não foi permitida. Reporte ao ADM o código : #VII413',
-			status_type: 'text',
-		})
-	}
-
-	/**
-	 * validar se o status é == 1 se for, nessa fase ele deve permitir
-	 * caso não seja, e status seja == 0, ele nao permite o usuário continuar,
-	 * e gera um novo block e expiração, p/ forçar o usuário no futuro "desbloquear"
-	 * e notifica o usuário
-	 */
-
-	// cria uma nova data de expiração ( baseado no time )
-	const dateClickNow = dateFunc()
-	// usa o tempo default 10/secs para uma expiração máxima
-	const dateClickFinal = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT'))
-
-	const checkUser = collectionBuy.doc('' + userId + '')
-	checkUser.get().then((doc) => {
-		// verifica se existe registro, pois assim evita error no codigo e restart
-		if (doc.exists) {
-			// verificar status == 1 ( permitir continuar )
-			if (doc.data().status == 1) {
-				/**
-	 * 
-		monta os dados para update
-		add o numerCode, e nova data de expiração nessa fase ( atualizando )
-		só add nova data de expiração, para manter "mais um timer" desse processo
-		mas quem vai liberar de fato o sistema será o updateBuyRate
-	 */
-				const data = {
-					status: 2,
-					numberCode: numberCode,
-					expiredAt: dateClickFinal,
-					updatedAt: dateClickNow,
-				}
-
-				try {
-					// atualiza
-					const updateUserById = collectionBuy
-						.doc('' + userId + '')
-						.update(data)
-
-					res.status(200).send({
-						status_msg: 'allow',
-						status_msg_declaration: 'buy-allow',
-						status_resp: dateMileToDefault(dateClickFinal, 'time'),
-						status_type: 'date',
-					})
-				} catch (error) {
-					res.status(400).send({
-						status_msg: 'error',
-						status_msg_declaration: 'buy-allow-error-1',
-						status_resp: error,
-						status_type: 'text',
-					})
-				}
-			} else if (doc.data().status <= 0) {
-				// significa que é status == 0  ( bloqueia + notifica )
-
-				const data = {
-					status: 1,
-					numberCode: null,
-					expiredAt: dateClickFinal,
-					updatedAt: dateClickNow,
-				}
-
-				try {
-					// atualiza
-					const updateUserById = collectionBuy
-						.doc('' + userId + '')
-						.update(data)
-
-					res.status(401).send({
-						status_msg: 'denied',
-						status_msg_declaration: 'buy-denied-pending-process',
-						status_resp: dateMileToDefault(dateClickFinal, 'time'),
-						status_type: 'date',
-					})
-				} catch (error) {
-					res.status(400).send({
-						status_msg: 'error',
-						status_msg_declaration: 'buy-allow-error-4',
-						status_resp: error,
-						status_type: 'text',
-					})
-				}
-			} else if (doc.data().status == 2) {
-				// significa qu é status == 2 ( bloqueia e notifica )
-
-				const data = {
-					expiredAt: dateClickFinal,
-					updatedAt: dateClickNow,
-				}
-
-				try {
-					// atualiza
-					const updateUserById = collectionBuy
-						.doc('' + userId + '')
-						.update(data)
-
-					res.status(401).send({
-						status_msg: 'denied',
-						status_msg_declaration: 'buy-denied-pending-process',
-						status_resp: dateMileToDefault(dateClickFinal, 'time'),
-						status_type: 'date',
-					})
-				} catch (error) {
-					res.status(400).send({
-						status_msg: 'error',
-						status_msg_declaration: 'buy-allow-error-5',
-						status_resp: error,
-						status_type: 'text',
-					})
-				}
-			}
-		}
-	})
-})
-
-/**
- * faz o upate do usuario, liberando ele para o retorno do zero ( compra )
- * porem pega o status == 2, pra garantir de não pegar nenhum update onde
- * o status é == 1
- * {
- *  "userId" : "idDoUser000",
- * }
- */
-
-app.post('/updateRateBuy', authMiddleware, async (req, res) => {
-	// pega e valida userId tirando tudo que tiver de special character
-	const userId = validatorInputs(req.body.userId)
-
-	// cria uma nova data de expiração ( baseado no time )
-	const dateClickNow = dateFunc()
-
-	// valida o tipo do input vindo, p/ saber se ele é o esperado
-	let validatorCheck = validatorInputs(userId, 'isNumeric')
-	if (!validatorCheck) {
-		return res.status(409).send({
-			status_msg: 'denied',
-			status_msg_declaration: 'validator-input-invalid',
-			status_resp:
-				'Sua requisição não foi permitida. Reporte ao ADM o código : #VII414',
-			status_type: 'text',
-		})
-	}
-
-	const checkUser = collectionBuy.doc('' + userId + '')
-	checkUser.get().then((doc) => {
-		// verifica se existe registro, pois assim evita error no codigo e restart
-		if (doc.exists) {
-			/**
-		 *
-		verificar status == 2 ( pois aqui, ele apenas pega se status == 2 )
-		garantindo que apenas vai liberar via codigo se já esta concluido a fase
-		1 previnindo do sistema da algum BUG/ERROR e liberar antes de concluir
-		*/
-			if (doc.data().status == 2) {
-				/**
-			 *  
-			monta os dados para update
-			add o numerCode, e nova data de expiração nessa fase ( atualizando )
-			só add nova data de expiração, para manter "mais um timer" desse processo
-			mas quem vai liberar de fato o sistema será o updateBuyRate
-			*/
-				const data = {
-					status: 0,
-					numberCode: null,
-					expiredAt: dateClickNow,
-					updatedAt: dateClickNow,
-				}
-
-				try {
-					// atualiza
-					const updateUserById = collectionBuy
-						.doc('' + userId + '')
-						.update(data)
-
-					res.status(200).send({
-						status_msg: 'allow',
-						status_msg_declaration: 'buy-allow',
-						status_resp: dateMileToDefault(dateClickNow, 'time'),
-						status_type: 'date',
-					})
-				} catch (error) {
-					res.status(400).send({
-						status_msg: 'error',
-						status_msg_declaration: 'buy-allow-error-1',
-						status_resp: error,
-						status_type: 'text',
-					})
-				}
-			} else {
-				res.status(200).send({
-					status_msg: 'allow',
-					status_msg_declaration: 'buy-allow',
-					status_resp: dateMileToDefault(dateClickNow, 'time'),
-					status_type: 'date',
-				})
-			}
-		} else {
-			res.status(200).send({
-				status_msg: 'allow',
-				status_msg_declaration: 'buy-allow',
-				status_resp: dateMileToDefault(dateClickNow, 'time'),
-				status_type: 'date',
+	} else {
+		// valida o tipo do input vindo, p/ saber se ele é o esperado
+		let validatorCheck = validatorInputs(userId, 'isNumeric')
+		if (!validatorCheck) {
+			return res.status(409).send({
+				status_msg: 'denied',
+				status_msg_declaration: 'validator-input-invalid',
+				status_resp:
+					'Sua requisição não foi permitida. Reporte ao ADM o código : #VII410',
+				status_type: 'text',
 			})
 		}
-	})
-})
 
-// #########################################################################
-// ################################  CANCEL   ##############################
-// #########################################################################
+		// cria uma nova data de expiração ( baseado no time )
+		const dateClickNow = dateFunc()
+		// usa o tempo default 10/secs para uma expiração máxima
+		const dateClickInitial = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT_2'))
 
-/**
- * comprar novo serviço
- * vira apenas
- * {
- *  "userId" : "idDoUser000"
- * }
- */
+		// monta os dados para insert
+		const data = {
+			userId: userId,
+			status: 1,
+			numberCode: null,
+			createdAt: dateClickNow,
+			expiredAt: dateClickInitial,
+			updatedAt: null,
+		}
 
-app.post('/rateCancel1', authMiddleware, async (req, res) => {
-	// pega e valida userId tirando tudo que tiver de special character
-	const userId = validatorInputs(req.body.userId)
-
-	// console.log('request:' + req.method)
-
-	// valida o tipo do input vindo, p/ saber se ele é o esperado
-	let validatorCheck = validatorInputs(userId, 'isNumeric')
-	if (!validatorCheck) {
-		return res.status(409).send({
-			status_msg: 'denied',
-			status_msg_declaration: 'validator-input-invalid',
-			status_resp:
-				'Sua requisição não foi permitida. Reporte ao ADM o código : #VII415',
-			status_type: 'text',
-		})
-	}
-
-	// cria uma nova data de expiração ( baseado no time )
-	const dateClickNow = dateFunc()
-	// usa o tempo default 10/secs para uma expiração máxima
-	const dateClickInitial = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT'))
-
-	// monta os dados para insert
-	const data = {
-		userId: userId,
-		status: 1,
-		createdAt: dateClickNow,
-		expiredAt: dateClickInitial,
-		updatedAt: null,
-	}
-
-	// verifica se ja existe o userId no banco
-	const checkUser = collectionCancel.doc('' + userId + '')
-	checkUser.get().then((doc) => {
-		// verifica se existe registro, pois assim evita error no codigo e restart
-		if (doc.exists) {
+		// verifica se ja existe o userId no banco
+		const checkUser = collectionBuy.doc('' + userId + '')
+		checkUser.get().then((doc) => {
 			// verifica se o usuario existe - caso não, faz o cadastro
 			if (!doc.exists) {
 				try {
 					checkUser.set(data)
 					res.status(200).send({
 						status_msg: 'allow',
-						status_msg_declaration: 'cancel-allow',
+						status_msg_declaration: 'buy-allow',
 						status_resp: dateMileToDefault(dateClickInitial, 'time'),
 						status_type: 'date',
 					})
 				} catch (error) {
 					res.status(400).send({
 						status_msg: 'error',
-						status_msg_declaration: 'cancel-allow-error-1',
+						status_msg_declaration: 'buy-allow-error-1',
 						status_resp: error,
 						status_type: 'text',
 					})
@@ -1568,6 +1158,7 @@ app.post('/rateCancel1', authMiddleware, async (req, res) => {
 						try {
 							const data = {
 								status: 1,
+								numberCode: null,
 								updatedAt: dateClickNow,
 								expiredAt: dateClickInitial,
 							}
@@ -1581,20 +1172,20 @@ app.post('/rateCancel1', authMiddleware, async (req, res) => {
 							e sim, essa rota apenas irá processar requisições de compra.
 
 						  */
-							const updateUserById = collectionCancel
+							const updateUserById = collectionBuy
 								.doc('' + userId + '')
 								.update(data)
 
 							res.status(200).send({
 								status_msg: 'allow',
-								status_msg_declaration: 'cancel-allow',
+								status_msg_declaration: 'buy-allow',
 								status_resp: dateMileToDefault(dateClickExpiration, 'time'),
 								status_type: 'date',
 							})
 						} catch (error) {
 							res.status(400).send({
 								status_msg: 'error',
-								status_msg_declaration: 'cancel-allow-error-2',
+								status_msg_declaration: 'buy-allow-error-2',
 								status_resp: error,
 								status_type: 'text',
 							})
@@ -1605,14 +1196,14 @@ app.post('/rateCancel1', authMiddleware, async (req, res) => {
 						try {
 							res.status(401).send({
 								status_msg: 'denied',
-								status_msg_declaration: 'cancel-denied-pending-process',
+								status_msg_declaration: 'buy-denied-pending-process',
 								status_resp: dateMileToDefault(dateClickExpiration, 'time'),
 								status_type: 'date',
 							})
 						} catch (error) {
 							res.status(400).send({
 								status_msg: 'error',
-								status_msg_declaration: 'cancel-allow-error-3',
+								status_msg_declaration: 'buy-allow-error-3',
 								status_resp: error,
 								status_type: 'text',
 							})
@@ -1630,10 +1221,365 @@ app.post('/rateCancel1', authMiddleware, async (req, res) => {
 						}
 
 						// aqui faz a atualização com o status on + data do expiredAt p/ expiração
-						const updateUserById = collectionCancel
+						const updateUserById = collectionBuy
 							.doc('' + userId + '')
 							.update(data)
 
+						res.status(200).send({
+							status_msg: 'allow',
+							status_msg_declaration: 'buy-allow',
+							status_resp: dateMileToDefault(dateClickInitial, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'buy-in-execution-error',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				}
+			}
+		})
+	}
+})
+
+/**
+ * recebe o numero do pedido + valida retorno p/ proxima fase do sistema
+ * vira apenas
+ * {
+ *  "userId" : "idDoUser000",
+ *  "numberCode" : "12039784986"
+ * }
+ */
+
+app.post('/rateBuy2', authMiddleware, async (req, res) => {
+	// pega e valida userId tirando tudo que tiver de special character
+	const userId = validatorInputs(req.body.userId)
+	const numberCode = validatorInputs(req.body.numberCode)
+
+	if (
+		userId == undefined ||
+		userId <= 0 ||
+		!userId ||
+		userId == '' ||
+		numberCode == undefined ||
+		numberCode <= 0 ||
+		!numberCode ||
+		numberCode == ''
+	) {
+		return res.status(409).send({
+			status_msg: 'denied',
+			status_msg_declaration: 'validator-input-not-fill',
+			status_resp: 'Prencha o userId + numberCode',
+			status_type: 'text',
+		})
+	} else {
+		console.log('1ax')
+
+		// valida o tipo do input vindo, p/ saber se ele é o esperado
+		let validatorCheck = validatorInputs(userId, 'isNumeric')
+		if (!validatorCheck) {
+			return res.status(409).send({
+				status_msg: 'denied',
+				status_msg_declaration: 'validator-input-invalid',
+				status_resp:
+					'Sua requisição não foi permitida. Reporte ao ADM o código : #VII412',
+				status_type: 'text',
+			})
+		}
+
+		// valida o tipo do input vindo, p/ saber se ele é o esperado
+		let validatorCheck2 = validatorInputs(numberCode, 'isNumeric')
+		if (!validatorCheck2) {
+			return res.status(409).send({
+				status_msg: 'denied',
+				status_msg_declaration: 'validator-input-invalid',
+				status_resp:
+					'Sua requisição não foi permitida. Reporte ao ADM o código : #VII413',
+				status_type: 'text',
+			})
+		}
+
+		/**
+		 * validar se o status é == 1 se for, nessa fase ele deve permitir
+		 * caso não seja, e status seja == 0, ele nao permite o usuário continuar,
+		 * e gera um novo block e expiração, p/ forçar o usuário no futuro "desbloquear"
+		 * e notifica o usuário
+		 */
+
+		// cria uma nova data de expiração ( baseado no time )
+		const dateClickNow = dateFunc()
+		// usa o tempo default 10/secs para uma expiração máxima
+		const dateClickFinal = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT_2'))
+
+		const checkUser = collectionBuy.doc('' + userId + '')
+		checkUser.get().then((doc) => {
+			// verifica se existe registro, pois assim evita error no codigo e restart
+			if (doc.exists) {
+				// verificar status == 1 ( permitir continuar )
+				if (doc.data().status == 1) {
+					/**
+	 * 
+		monta os dados para update
+		add o numerCode, e nova data de expiração nessa fase ( atualizando )
+		só add nova data de expiração, para manter "mais um timer" desse processo
+		mas quem vai liberar de fato o sistema será o updateBuyRate
+	 */
+					const data = {
+						status: 2,
+						numberCode: numberCode,
+						expiredAt: dateClickFinal,
+						updatedAt: dateClickNow,
+					}
+
+					try {
+						// atualiza
+						const updateUserById = collectionBuy
+							.doc('' + userId + '')
+							.update(data)
+
+						res.status(200).send({
+							status_msg: 'allow',
+							status_msg_declaration: 'buy-allow',
+							status_resp: dateMileToDefault(dateClickFinal, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'buy-allow-error-1',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				} else if (doc.data().status <= 0) {
+					// significa que é status == 0  ( bloqueia + notifica )
+
+					const data = {
+						status: 1,
+						numberCode: null,
+						expiredAt: dateClickFinal,
+						updatedAt: dateClickNow,
+					}
+
+					try {
+						// atualiza
+						const updateUserById = collectionBuy
+							.doc('' + userId + '')
+							.update(data)
+
+						res.status(401).send({
+							status_msg: 'denied',
+							status_msg_declaration: 'buy-denied-pending-process',
+							status_resp: dateMileToDefault(dateClickFinal, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'buy-allow-error-4',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				} else if (doc.data().status == 2) {
+					// significa qu é status == 2 ( bloqueia e notifica )
+
+					const data = {
+						expiredAt: dateClickFinal,
+						updatedAt: dateClickNow,
+					}
+
+					try {
+						// atualiza
+						const updateUserById = collectionBuy
+							.doc('' + userId + '')
+							.update(data)
+
+						res.status(401).send({
+							status_msg: 'denied',
+							status_msg_declaration: 'buy-denied-pending-process',
+							status_resp: dateMileToDefault(dateClickFinal, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'buy-allow-error-5',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				}
+			}
+		})
+	}
+})
+
+/**
+ * faz o upate do usuario, liberando ele para o retorno do zero ( compra )
+ * porem pega o status == 2, pra garantir de não pegar nenhum update onde
+ * o status é == 1
+ * {
+ *  "userId" : "idDoUser000",
+ * }
+ */
+
+app.post('/updateRateBuy', authMiddleware, async (req, res) => {
+	// pega e valida userId tirando tudo que tiver de special character
+	const userId = validatorInputs(req.body.userId)
+
+	if (userId == undefined || userId <= 0 || !userId || userId == '') {
+		return res.status(409).send({
+			status_msg: 'denied',
+			status_msg_declaration: 'validator-input-not-fill',
+			status_resp: 'Prencha o userId',
+			status_type: 'text',
+		})
+	} else {
+		// cria uma nova data de expiração ( baseado no time )
+		const dateClickNow = dateFunc()
+
+		// valida o tipo do input vindo, p/ saber se ele é o esperado
+		let validatorCheck = validatorInputs(userId, 'isNumeric')
+		if (!validatorCheck) {
+			return res.status(409).send({
+				status_msg: 'denied',
+				status_msg_declaration: 'validator-input-invalid',
+				status_resp:
+					'Sua requisição não foi permitida. Reporte ao ADM o código : #VII414',
+				status_type: 'text',
+			})
+		}
+
+		const checkUser = collectionBuy.doc('' + userId + '')
+		checkUser.get().then((doc) => {
+			// verifica se existe registro, pois assim evita error no codigo e restart
+			if (doc.exists) {
+				/**
+		 *
+		verificar status == 2 ( pois aqui, ele apenas pega se status == 2 )
+		garantindo que apenas vai liberar via codigo se já esta concluido a fase
+		1 previnindo do sistema da algum BUG/ERROR e liberar antes de concluir
+		*/
+				if (doc.data().status == 2) {
+					/**
+			 *  
+			monta os dados para update
+			add o numerCode, e nova data de expiração nessa fase ( atualizando )
+			só add nova data de expiração, para manter "mais um timer" desse processo
+			mas quem vai liberar de fato o sistema será o updateBuyRate
+			*/
+					const data = {
+						status: 0,
+						numberCode: null,
+						expiredAt: dateClickNow,
+						updatedAt: dateClickNow,
+					}
+
+					try {
+						// atualiza
+						const updateUserById = collectionBuy
+							.doc('' + userId + '')
+							.update(data)
+
+						res.status(200).send({
+							status_msg: 'allow',
+							status_msg_declaration: 'buy-allow',
+							status_resp: dateMileToDefault(dateClickNow, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'buy-allow-error-1',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				} else {
+					res.status(200).send({
+						status_msg: 'allow',
+						status_msg_declaration: 'buy-allow',
+						status_resp: dateMileToDefault(dateClickNow, 'time'),
+						status_type: 'date',
+					})
+				}
+			} else {
+				res.status(200).send({
+					status_msg: 'allow',
+					status_msg_declaration: 'buy-allow',
+					status_resp: dateMileToDefault(dateClickNow, 'time'),
+					status_type: 'date',
+				})
+			}
+		})
+	}
+})
+
+// #########################################################################
+// ################################  CANCEL   ##############################
+// #########################################################################
+
+/**
+ * comprar novo serviço
+ * vira apenas
+ * {
+ *  "userId" : "idDoUser000"
+ * }
+ */
+
+app.post('/rateCancel1', authMiddleware, async (req, res) => {
+	// pega e valida userId tirando tudo que tiver de special character
+	const userId = validatorInputs(req.body.userId)
+
+	if (userId == undefined || userId <= 0 || !userId || userId == '') {
+		return res.status(409).send({
+			status_msg: 'denied',
+			status_msg_declaration: 'validator-input-not-fill',
+			status_resp: 'Prencha o userId',
+			status_type: 'text',
+		})
+	} else {
+		// console.log('request:' + req.method)
+
+		// valida o tipo do input vindo, p/ saber se ele é o esperado
+		let validatorCheck = validatorInputs(userId, 'isNumeric')
+		if (!validatorCheck) {
+			return res.status(409).send({
+				status_msg: 'denied',
+				status_msg_declaration: 'validator-input-invalid',
+				status_resp:
+					'Sua requisição não foi permitida. Reporte ao ADM o código : #VII415',
+				status_type: 'text',
+			})
+		}
+
+		// cria uma nova data de expiração ( baseado no time )
+		const dateClickNow = dateFunc()
+		// usa o tempo default 10/secs para uma expiração máxima
+		const dateClickInitial = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT_2'))
+
+		// monta os dados para insert
+		const data = {
+			userId: userId,
+			status: 1,
+			createdAt: dateClickNow,
+			expiredAt: dateClickInitial,
+			updatedAt: null,
+		}
+
+		// verifica se ja existe o userId no banco
+		const checkUser = collectionCancel.doc('' + userId + '')
+		checkUser.get().then((doc) => {
+			// verifica se existe registro, pois assim evita error no codigo e restart
+			if (doc.exists) {
+				// verifica se o usuario existe - caso não, faz o cadastro
+				if (!doc.exists) {
+					try {
+						checkUser.set(data)
 						res.status(200).send({
 							status_msg: 'allow',
 							status_msg_declaration: 'cancel-allow',
@@ -1643,15 +1589,122 @@ app.post('/rateCancel1', authMiddleware, async (req, res) => {
 					} catch (error) {
 						res.status(400).send({
 							status_msg: 'error',
-							status_msg_declaration: 'cancel-in-execution-error',
+							status_msg_declaration: 'cancel-allow-error-1',
 							status_resp: error,
 							status_type: 'text',
 						})
 					}
+				} else {
+					// o usuario ja existe
+
+					/**
+					 * verifica se status > 0
+					 * IF YES : significa que já existe 1 compra em endamento e não permite novas
+					 * IF NO : significa que não existe compra em andamento e permite
+					 */
+					// if (doc.data().status == 'on' || doc.data().blockLevel != null) {
+					if (doc.data().status > 0) {
+						/**
+						 * verificar expiredAt
+						 * verifica se o expiredAt esta "pendente" de ser zerado,
+						 * caso SIM, pode ter sido porque a função [2] "não foi chamada"
+						 * para fazer a limpeza, então aqui, força uma limpeza, para garantir
+						 * a não interrupção da interação do usuário no sistema
+						 */
+
+						// pega a data salva atual de expiração
+						const dateClickExpiration = doc.data().expiredAt
+
+						// verifica se a dataAtual é > que a dataExpiração - e faz um zerar status = 0 ( force)
+						if (dateClickNow > dateClickExpiration) {
+							try {
+								const data = {
+									status: 1,
+									updatedAt: dateClickNow,
+									expiredAt: dateClickInitial,
+								}
+
+								/**
+							* 
+							aqui faz a atualização com o status 1 + data do updated + data expired nova
+							mantendo status 1 : requisições futuras não irão passar de ( 1 )
+							assim, quando o sistema "liberar" e avisar que está liberado p/ o usuário, 
+							ele já estará enviando uma nova requisição, pois aqui não é o CLICK,
+							e sim, essa rota apenas irá processar requisições de compra.
+
+						  */
+								const updateUserById = collectionCancel
+									.doc('' + userId + '')
+									.update(data)
+
+								res.status(200).send({
+									status_msg: 'allow',
+									status_msg_declaration: 'cancel-allow',
+									status_resp: dateMileToDefault(dateClickExpiration, 'time'),
+									status_type: 'date',
+								})
+							} catch (error) {
+								res.status(400).send({
+									status_msg: 'error',
+									status_msg_declaration: 'cancel-allow-error-2',
+									status_resp: error,
+									status_type: 'text',
+								})
+							}
+						} else {
+							// aqui a dataAtual é < que a dataExpiração - então não permite novas compras
+
+							try {
+								res.status(401).send({
+									status_msg: 'denied',
+									status_msg_declaration: 'cancel-denied-pending-process',
+									status_resp: dateMileToDefault(dateClickExpiration, 'time'),
+									status_type: 'date',
+								})
+							} catch (error) {
+								res.status(400).send({
+									status_msg: 'error',
+									status_msg_declaration: 'cancel-allow-error-3',
+									status_resp: error,
+									status_type: 'text',
+								})
+							}
+						}
+					} else {
+						// status atual : off
+						// faz o status : on ( novamente ), pois aqui o usuário voltou a clicar
+						// e considera um block pois o usuário já clicou e o expiredAt ainda pendente
+						try {
+							const data = {
+								status: 1,
+								numberCode: null,
+								expiredAt: dateClickInitial,
+							}
+
+							// aqui faz a atualização com o status on + data do expiredAt p/ expiração
+							const updateUserById = collectionCancel
+								.doc('' + userId + '')
+								.update(data)
+
+							res.status(200).send({
+								status_msg: 'allow',
+								status_msg_declaration: 'cancel-allow',
+								status_resp: dateMileToDefault(dateClickInitial, 'time'),
+								status_type: 'date',
+							})
+						} catch (error) {
+							res.status(400).send({
+								status_msg: 'error',
+								status_msg_declaration: 'cancel-in-execution-error',
+								status_resp: error,
+								status_type: 'text',
+							})
+						}
+					}
 				}
 			}
-		}
-	})
+		})
+	}
 })
 
 /**
@@ -1667,129 +1720,138 @@ app.post('/rateCancel2', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
 
-	// valida o tipo do input vindo, p/ saber se ele é o esperado
-	let validatorCheck = validatorInputs(userId, 'isNumeric')
-	if (!validatorCheck) {
+	if (userId == undefined || userId <= 0 || !userId || userId == '') {
 		return res.status(409).send({
 			status_msg: 'denied',
-			status_msg_declaration: 'validator-input-invalid',
-			status_resp:
-				'Sua requisição não foi permitida. Reporte ao ADM o código : #VII416',
+			status_msg_declaration: 'validator-input-not-fill',
+			status_resp: 'Prencha o userId',
 			status_type: 'text',
 		})
-	}
+	} else {
+		// valida o tipo do input vindo, p/ saber se ele é o esperado
+		let validatorCheck = validatorInputs(userId, 'isNumeric')
+		if (!validatorCheck) {
+			return res.status(409).send({
+				status_msg: 'denied',
+				status_msg_declaration: 'validator-input-invalid',
+				status_resp:
+					'Sua requisição não foi permitida. Reporte ao ADM o código : #VII416',
+				status_type: 'text',
+			})
+		}
 
-	/**
-	 * validar se o status é == 1 se for, nessa fase ele deve permitir
-	 * caso não seja, e status seja == 0, ele nao permite o usuário continuar,
-	 * e gera um novo block e expiração, p/ forçar o usuário no futuro "desbloquear"
-	 * e notifica o usuário
-	 */
+		/**
+		 * validar se o status é == 1 se for, nessa fase ele deve permitir
+		 * caso não seja, e status seja == 0, ele nao permite o usuário continuar,
+		 * e gera um novo block e expiração, p/ forçar o usuário no futuro "desbloquear"
+		 * e notifica o usuário
+		 */
 
-	// cria uma nova data de expiração ( baseado no time )
-	const dateClickNow = dateFunc()
-	// usa o tempo default 10/secs para uma expiração máxima
-	const dateClickFinal = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT'))
+		// cria uma nova data de expiração ( baseado no time )
+		const dateClickNow = dateFunc()
+		// usa o tempo default 10/secs para uma expiração máxima
+		const dateClickFinal = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT_2'))
 
-	const checkUser = collectionCancel.doc('' + userId + '')
-	checkUser.get().then((doc) => {
-		// verifica se existe registro, pois assim evita error no codigo e restart
-		if (doc.exists) {
-			// verificar status == 1 ( permitir continuar )
-			if (doc.data().status == 1) {
-				/**
+		const checkUser = collectionCancel.doc('' + userId + '')
+		checkUser.get().then((doc) => {
+			// verifica se existe registro, pois assim evita error no codigo e restart
+			if (doc.exists) {
+				// verificar status == 1 ( permitir continuar )
+				if (doc.data().status == 1) {
+					/**
 	 * 
 		monta os dados para update
 		nova data de expiração nessa fase ( atualizando )
 		só add nova data de expiração, para manter "mais um timer" desse processo
 		mas quem vai liberar de fato o sistema será o updateRateCancel
 	 */
-				const data = {
-					status: 2,
-					expiredAt: dateClickFinal,
-					updatedAt: dateClickNow,
-				}
+					const data = {
+						status: 2,
+						expiredAt: dateClickFinal,
+						updatedAt: dateClickNow,
+					}
 
-				try {
-					// atualiza
-					const updateUserById = collectionCancel
-						.doc('' + userId + '')
-						.update(data)
+					try {
+						// atualiza
+						const updateUserById = collectionCancel
+							.doc('' + userId + '')
+							.update(data)
 
-					res.status(200).send({
-						status_msg: 'allow',
-						status_msg_declaration: 'cancel-allow',
-						status_resp: dateMileToDefault(dateClickFinal, 'time'),
-						status_type: 'date',
-					})
-				} catch (error) {
-					res.status(400).send({
-						status_msg: 'error',
-						status_msg_declaration: 'cancel-allow-error-1',
-						status_resp: error,
-						status_type: 'text',
-					})
-				}
-			} else if (doc.data().status <= 0) {
-				// significa que é status == 0  ( bloqueia + notifica )
+						res.status(200).send({
+							status_msg: 'allow',
+							status_msg_declaration: 'cancel-allow',
+							status_resp: dateMileToDefault(dateClickFinal, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'cancel-allow-error-1',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				} else if (doc.data().status <= 0) {
+					// significa que é status == 0  ( bloqueia + notifica )
 
-				const data = {
-					status: 1,
-					expiredAt: dateClickFinal,
-					updatedAt: dateClickNow,
-				}
+					const data = {
+						status: 1,
+						expiredAt: dateClickFinal,
+						updatedAt: dateClickNow,
+					}
 
-				try {
-					// atualiza
-					const updateUserById = collectionCancel
-						.doc('' + userId + '')
-						.update(data)
+					try {
+						// atualiza
+						const updateUserById = collectionCancel
+							.doc('' + userId + '')
+							.update(data)
 
-					res.status(401).send({
-						status_msg: 'denied',
-						status_msg_declaration: 'cancel-denied-pending-process',
-						status_resp: dateMileToDefault(dateClickFinal, 'time'),
-						status_type: 'date',
-					})
-				} catch (error) {
-					res.status(400).send({
-						status_msg: 'error',
-						status_msg_declaration: 'cancel-allow-error-4',
-						status_resp: error,
-						status_type: 'text',
-					})
-				}
-			} else if (doc.data().status == 2) {
-				// significa qu é status == 2 ( bloqueia e notifica )
+						res.status(401).send({
+							status_msg: 'denied',
+							status_msg_declaration: 'cancel-denied-pending-process',
+							status_resp: dateMileToDefault(dateClickFinal, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'cancel-allow-error-4',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				} else if (doc.data().status == 2) {
+					// significa qu é status == 2 ( bloqueia e notifica )
 
-				const data = {
-					expiredAt: dateClickFinal,
-					updatedAt: dateClickNow,
-				}
+					const data = {
+						expiredAt: dateClickFinal,
+						updatedAt: dateClickNow,
+					}
 
-				try {
-					// atualiza
-					const updateUserById = collectionCancel
-						.doc('' + userId + '')
-						.update(data)
+					try {
+						// atualiza
+						const updateUserById = collectionCancel
+							.doc('' + userId + '')
+							.update(data)
 
-					res.status(401).send({
-						status_msg: 'denied',
-						status_msg_declaration: 'cancel-denied-pending-process',
-						status_resp: dateMileToDefault(dateClickFinal, 'time'),
-						status_type: 'date',
-					})
-				} catch (error) {
-					res.status(400).send({
-						status_msg: 'error',
-						status_msg_declaration: 'cancel-allow-error-5',
-						status_resp: error,
-						status_type: 'text',
-					})
+						res.status(401).send({
+							status_msg: 'denied',
+							status_msg_declaration: 'cancel-denied-pending-process',
+							status_resp: dateMileToDefault(dateClickFinal, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'cancel-allow-error-5',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
 				}
 			}
-		}
-	})
+		})
+	}
 })
 
 /**
@@ -1805,63 +1867,79 @@ app.post('/updateRateCancel', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
 
-	// cria uma nova data de expiração ( baseado no time )
-	const dateClickNow = dateFunc()
-
-	// valida o tipo do input vindo, p/ saber se ele é o esperado
-	let validatorCheck = validatorInputs(userId, 'isNumeric')
-	if (!validatorCheck) {
+	if (userId == undefined || userId <= 0 || !userId || userId == '') {
 		return res.status(409).send({
 			status_msg: 'denied',
-			status_msg_declaration: 'validator-input-invalid',
-			status_resp:
-				'Sua requisição não foi permitida. Reporte ao ADM o código : #VII414',
+			status_msg_declaration: 'validator-input-not-fill',
+			status_resp: 'Prencha o userId',
 			status_type: 'text',
 		})
-	}
+	} else {
+		// cria uma nova data de expiração ( baseado no time )
+		const dateClickNow = dateFunc()
 
-	const checkUser = collectionCancel.doc('' + userId + '')
-	checkUser.get().then((doc) => {
-		// verifica se existe registro, pois assim evita error no codigo e restart
-		if (doc.exists) {
-			/**
+		// valida o tipo do input vindo, p/ saber se ele é o esperado
+		let validatorCheck = validatorInputs(userId, 'isNumeric')
+		if (!validatorCheck) {
+			return res.status(409).send({
+				status_msg: 'denied',
+				status_msg_declaration: 'validator-input-invalid',
+				status_resp:
+					'Sua requisição não foi permitida. Reporte ao ADM o código : #VII414',
+				status_type: 'text',
+			})
+		}
+
+		const checkUser = collectionCancel.doc('' + userId + '')
+		checkUser.get().then((doc) => {
+			// verifica se existe registro, pois assim evita error no codigo e restart
+			if (doc.exists) {
+				/**
 		 *
 		verificar status == 2 ( pois aqui, ele apenas pega se status == 2 )
 		garantindo que apenas vai liberar via codigo se já esta concluido a fase
 		1 previnindo do sistema da algum BUG/ERROR e liberar antes de concluir
 		*/
-			if (doc.data().status == 2) {
-				/**
+				if (doc.data().status == 2) {
+					/**
 			 *  
 			monta os dados para update
 			add o numerCode, e nova data de expiração nessa fase ( atualizando )
 			só add nova data de expiração, para manter "mais um timer" desse processo
 			mas quem vai liberar de fato o sistema será o updateBuyRate
 			*/
-				const data = {
-					status: 0,
-					expiredAt: dateClickNow,
-					updatedAt: dateClickNow,
-				}
+					const data = {
+						status: 0,
+						expiredAt: dateClickNow,
+						updatedAt: dateClickNow,
+					}
 
-				try {
-					// atualiza
-					const updateUserById = collectionCancel
-						.doc('' + userId + '')
-						.update(data)
+					try {
+						// atualiza
+						const updateUserById = collectionCancel
+							.doc('' + userId + '')
+							.update(data)
 
+						res.status(200).send({
+							status_msg: 'allow',
+							status_msg_declaration: 'cancel-allow',
+							status_resp: dateMileToDefault(dateClickNow, 'time'),
+							status_type: 'date',
+						})
+					} catch (error) {
+						res.status(400).send({
+							status_msg: 'error',
+							status_msg_declaration: 'cancel-allow-error-1',
+							status_resp: error,
+							status_type: 'text',
+						})
+					}
+				} else {
 					res.status(200).send({
 						status_msg: 'allow',
 						status_msg_declaration: 'cancel-allow',
 						status_resp: dateMileToDefault(dateClickNow, 'time'),
 						status_type: 'date',
-					})
-				} catch (error) {
-					res.status(400).send({
-						status_msg: 'error',
-						status_msg_declaration: 'cancel-allow-error-1',
-						status_resp: error,
-						status_type: 'text',
 					})
 				}
 			} else {
@@ -1872,15 +1950,8 @@ app.post('/updateRateCancel', authMiddleware, async (req, res) => {
 					status_type: 'date',
 				})
 			}
-		} else {
-			res.status(200).send({
-				status_msg: 'allow',
-				status_msg_declaration: 'cancel-allow',
-				status_resp: dateMileToDefault(dateClickNow, 'time'),
-				status_type: 'date',
-			})
-		}
-	})
+		})
+	}
 })
 
 /**

@@ -92,7 +92,7 @@ const configEnv = (config) => {
 	// tempo default do timeout de click feito - caso a aplicação não libere antes
 	// defini para inicio : 10segundos
 	if (config == 'FLOOD_TIMEOUT_DEFAULT_2') {
-		configReturn = 45
+		configReturn = 30
 	}
 
 	// limite de clicks para atingir o flood + block
@@ -1430,6 +1430,8 @@ app.post('/rateBuy2', authMiddleware, async (req, res) => {
 app.post('/updateRateBuy', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
+
+	sleep(3000)
 
 	if (userId == undefined || userId <= 0 || !userId || userId == '') {
 		return res.status(409).send({

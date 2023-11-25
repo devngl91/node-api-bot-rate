@@ -1431,8 +1431,6 @@ app.post('/updateRateBuy', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
 
-	sleep(3000)
-
 	if (userId == undefined || userId <= 0 || !userId || userId == '') {
 		return res.status(409).send({
 			status_msg: 'denied',
@@ -1474,6 +1472,9 @@ app.post('/updateRateBuy', authMiddleware, async (req, res) => {
 			só add nova data de expiração, para manter "mais um timer" desse processo
 			mas quem vai liberar de fato o sistema será o updateBuyRate
 			*/
+
+					sleep(1)
+
 					const data = {
 						status: 0,
 						numberCode: null,

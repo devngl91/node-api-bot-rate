@@ -92,7 +92,7 @@ const configEnv = (config) => {
 	// tempo default do timeout de click feito - caso a aplicação não libere antes
 	// defini para inicio : 10segundos
 	if (config == 'FLOOD_TIMEOUT_DEFAULT_2') {
-		configReturn = 30
+		configReturn = 20
 	}
 
 	// limite de clicks para atingir o flood + block
@@ -1472,9 +1472,6 @@ app.post('/updateRateBuy', authMiddleware, async (req, res) => {
 			só add nova data de expiração, para manter "mais um timer" desse processo
 			mas quem vai liberar de fato o sistema será o updateBuyRate
 			*/
-
-					sleep(1)
-
 					const data = {
 						status: 0,
 						numberCode: null,
@@ -1534,7 +1531,7 @@ app.post('/updateRateBuy', authMiddleware, async (req, res) => {
  * }
  */
 
-app.post('/rateCancel1', authMiddleware, async (req, res) => {
+app.post('/rateCancel1_OFF', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
 
@@ -1719,7 +1716,7 @@ app.post('/rateCancel1', authMiddleware, async (req, res) => {
  * }
  */
 
-app.post('/rateCancel2', authMiddleware, async (req, res) => {
+app.post('/rateCancel2_OFF', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
 
@@ -1866,7 +1863,7 @@ app.post('/rateCancel2', authMiddleware, async (req, res) => {
  * }
  */
 
-app.post('/updateRateCancel', authMiddleware, async (req, res) => {
+app.post('/updateRateCancel_OFF', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
 

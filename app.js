@@ -90,9 +90,9 @@ const configEnv = (config) => {
 	}
 
 	// tempo default do timeout de click feito - caso a aplicação não libere antes
-	// defini para inicio : 30segundos de timeout entre cada pedido
+	// defini para inicio : 20segundos de timeout entre cada pedido
 	if (config == 'FLOOD_TIMEOUT_DEFAULT_2') {
-		configReturn = 30
+		configReturn = 20
 	}
 
 	// limite de clicks para atingir o flood + block

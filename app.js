@@ -90,9 +90,9 @@ const configEnv = (config) => {
 	}
 
 	// tempo default do timeout de click feito - caso a aplicação não libere antes
-	// defini para inicio : 10segundos
+	// defini para inicio : 30segundos de timeout entre cada pedido
 	if (config == 'FLOOD_TIMEOUT_DEFAULT_2') {
-		configReturn = 20
+		configReturn = 30
 	}
 
 	// limite de clicks para atingir o flood + block
@@ -1098,18 +1098,8 @@ app.post('/rateBuy1', authMiddleware, async (req, res) => {
 
 		// cria uma nova data de expiração ( baseado no time )
 		const dateClickNow = dateFunc()
-		// usa o tempo default 10/secs para uma expiração máxima
+		// usa o tempo default 30/secs para uma expiração máxima
 		const dateClickInitial = dateFunc('+', configEnv('FLOOD_TIMEOUT_DEFAULT_2'))
-
-		// monta os dados para insert
-		const data = {
-			userId: userId,
-			status: 1,
-			numberCode: null,
-			createdAt: dateClickNow,
-			expiredAt: dateClickInitial,
-			updatedAt: null,
-		}
 
 		// verifica se ja existe o userId no banco
 		const checkUser = collectionBuy.doc('' + userId + '')
@@ -1117,7 +1107,19 @@ app.post('/rateBuy1', authMiddleware, async (req, res) => {
 			// verifica se o usuario existe - caso não, faz o cadastro
 			if (!doc.exists) {
 				try {
+					// monta os dados para insert
+					const data = {
+						userId: userId,
+						status: 1,
+						numberCode: null,
+						createdAt: dateClickNow,
+						expiredAt: dateClickInitial,
+						updatedAt: null,
+					}
+
+					// faz o set 1x
 					checkUser.set(data)
+
 					res.status(200).send({
 						status_msg: 'allow',
 						status_msg_declaration: 'buy-allow',
@@ -1153,14 +1155,15 @@ app.post('/rateBuy1', authMiddleware, async (req, res) => {
 					// pega a data salva atual de expiração
 					const dateClickExpiration = doc.data().expiredAt
 
-					// verifica se a dataAtual é > que a dataExpiração - e faz um zerar status = 0 ( force)
-					if (dateClickNow > dateClickExpiration) {
+					// verifica se a dataAtual é > que a dataExpiração e status é igual = 2
+					// dai faz o status ser zero pois ele ja finalizou o time e loop dele.
+					if (dateClickNow > dateClickExpiration && doc.data().status == 2) {
 						try {
 							const data = {
-								status: 1,
+								status: 0,
 								numberCode: null,
 								updatedAt: dateClickNow,
-								expiredAt: dateClickInitial,
+								expiredAt: dateClickNow,
 							}
 
 							/**
@@ -1170,8 +1173,8 @@ app.post('/rateBuy1', authMiddleware, async (req, res) => {
 							assim, quando o sistema "liberar" e avisar que está liberado p/ o usuário, 
 							ele já estará enviando uma nova requisição, pois aqui não é o CLICK,
 							e sim, essa rota apenas irá processar requisições de compra.
-
 						  */
+
 							const updateUserById = collectionBuy
 								.doc('' + userId + '')
 								.update(data)
@@ -1308,7 +1311,6 @@ app.post('/rateBuy2', authMiddleware, async (req, res) => {
 		 * e gera um novo block e expiração, p/ forçar o usuário no futuro "desbloquear"
 		 * e notifica o usuário
 		 */
-
 		// cria uma nova data de expiração ( baseado no time )
 		const dateClickNow = dateFunc()
 		// usa o tempo default 10/secs para uma expiração máxima
@@ -1320,22 +1322,22 @@ app.post('/rateBuy2', authMiddleware, async (req, res) => {
 			if (doc.exists) {
 				// verificar status == 1 ( permitir continuar )
 				if (doc.data().status == 1) {
-					/**
-	 * 
-		monta os dados para update
-		add o numerCode, e nova data de expiração nessa fase ( atualizando )
-		só add nova data de expiração, para manter "mais um timer" desse processo
-		mas quem vai liberar de fato o sistema será o updateBuyRate
-	 */
-					const data = {
-						status: 2,
-						numberCode: numberCode,
-						expiredAt: dateClickFinal,
-						updatedAt: dateClickNow,
-					}
-
 					try {
 						// atualiza
+						/**
+						 * 
+							monta os dados para update
+							add o numerCode, e nova data de expiração nessa fase ( atualizando )
+							só add nova data de expiração, para manter "mais um timer" desse processo
+							mas quem vai liberar de fato o sistema será o updateBuyRate
+						*/
+						const data = {
+							status: 2,
+							numberCode: numberCode,
+							// expiredAt: dateClickFinal,
+							updatedAt: dateClickNow,
+						}
+
 						const updateUserById = collectionBuy
 							.doc('' + userId + '')
 							.update(data)
@@ -1425,9 +1427,12 @@ app.post('/rateBuy2', authMiddleware, async (req, res) => {
  * {
  *  "userId" : "idDoUser000",
  * }
+ * 26-11-23
+ * Desativando updateRate p/ testar de forma independente somente via o rateBuy1
+ *
  */
 
-app.post('/updateRateBuy', authMiddleware, async (req, res) => {
+app.post('/updateRateBuy_OFF', authMiddleware, async (req, res) => {
 	// pega e valida userId tirando tudo que tiver de special character
 	const userId = validatorInputs(req.body.userId)
 

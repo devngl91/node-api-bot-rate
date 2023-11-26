@@ -1459,7 +1459,7 @@ app.post('/updateRateBuy', authMiddleware, async (req, res) => {
 			// verifica se existe registro, pois assim evita error no codigo e restart
 			if (doc.exists) {
 				// sleep de test para ter 3 segundos apos o upate click vir
-				sleep(3000)
+				// sleep(3000)
 
 				/**
 		 *

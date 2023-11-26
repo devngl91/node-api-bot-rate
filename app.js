@@ -1276,7 +1276,7 @@ app.post('/rateBuy2', authMiddleware, async (req, res) => {
 			status_type: 'text',
 		})
 	} else {
-		console.log('1ax')
+		// console.log('1ax')
 
 		// valida o tipo do input vindo, p/ saber se ele é o esperado
 		let validatorCheck = validatorInputs(userId, 'isNumeric')

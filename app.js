@@ -86,11 +86,11 @@ const configEnv = (config) => {
 	// tempo default do timeout de click feito - caso a aplicação não libere antes
 	// defini para inicio : 10segundos
 	if (config == 'FLOOD_TIMEOUT_DEFAULT') {
-		configReturn = 10
+		configReturn = 15
 	}
 
 	// tempo default do timeout de click feito - caso a aplicação não libere antes
-	// defini para inicio : 20segundos de timeout entre cada pedido
+	// defini para inicio : 15segundos de timeout entre cada pedido
 	if (config == 'FLOOD_TIMEOUT_DEFAULT_2') {
 		configReturn = 10
 	}

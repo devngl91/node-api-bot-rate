@@ -84,7 +84,7 @@ const configEnv = (config) => {
 	}
 
 	// tempo default do timeout de click feito - caso a aplicação não libere antes
-	// defini para inicio : 10segundos
+	// defini para inicio : 15segundos
 	if (config == 'FLOOD_TIMEOUT_DEFAULT') {
 		configReturn = 15
 	}
@@ -345,6 +345,7 @@ const collectionCancel = db.collection(configEnv('COLLECTION_3'))
  * +5 ( vai adicionar mais 5 segundos no time atual )
  * -5 ( vai retirar 5 segundos no time atual )
  */
+
 const dateFunc = (calculation = null, time = null) => {
 	// se não vier date, sera a data atual
 	if (!time) {

@@ -74,7 +74,7 @@ const configEnv = (config) => {
 	}
 
 	if (config == 'TIME_SYNC_GMT') {
-		configReturn = 3
+		configReturn = -3
 	}
 
 	// level 1 = leve, quando zerar o time, zera os clicks tambem
@@ -346,13 +346,24 @@ const collectionCancel = db.collection(configEnv('COLLECTION_3'))
  * -5 ( vai retirar 5 segundos no time atual )
  */
 
+// faz o GMT ( -3 ) ou o necessário e, converte pra mileseconds
+const getLocalTime = () => {
+	var d = new Date()
+	var offset = configEnv('TIME_SYNC_GMT') // GMT offSet
+	d.setTime(
+		new Date().getTime() +
+			d.getTimezoneOffset() * 60 * 1000 + // local offset
+			1000 * 60 * 60 * offset
+	) // target offset
+	return d.getTime()
+}
+
 const dateFunc = (calculation = null, time = null) => {
-	// se não vier date, sera a data atual
 	if (!time) {
-		time = Date.now() // date now
+		time = getLocalTime() // date now
 	} else {
 		// se vier date, sera o valor em segundos a acrescentar
-		let dateToExpire = new Date()
+		let dateToExpire = new Date(getLocalTime())
 		let dateToExpireTime = null
 		if (calculation == '+') {
 			// acrescenta + minutos
@@ -395,10 +406,7 @@ const dateMileToDefault = (timestamp, type) => {
 		let myArr = dateFormat
 		// faz um split da hora 11:11:11 em um array, para poder tratar individualmente cada
 		result = myArr.split(':')
-		// faz o split e subtração da hora p/ corrigir ( em 3 hrs abaixo )
-		//FIXME: chamada .env não funciona ( TIME_SYNC_GMT) on tem [-3+]
 
-		// dateDay = result[0] - configEnv('TIME_SYNC_GMT') // force down ( hour timezone )
 		dateDay = result[0]
 		dateMonth = result[1]
 		dateYear = result[2]
